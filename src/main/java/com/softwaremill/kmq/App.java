@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Clock;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -35,13 +36,15 @@ public class App {
     private static KafkaProducer<ByteBuffer, ByteBuffer> msgProducer;
     private static ExecutorService executorService = Executors.newCachedThreadPool();
 
+    private static final int PARTITIONS = 1;
+    private static final int TOTAL_MSGS = 100;
+
     public static void main(String[] args) throws InterruptedException, IOException {
-        int partitions = 1;
 
         EmbeddedKafka$.MODULE$.start(EMBEDDED_KAFKA_CONFIG);
         // The offsets topic has the same # of partitions as the queue topic.
-        EmbeddedKafka$.MODULE$.createCustomTopic(QUEUE, Map$.MODULE$.empty(), partitions, 1, EMBEDDED_KAFKA_CONFIG);
-        EmbeddedKafka$.MODULE$.createCustomTopic(OFFSETS, Map$.MODULE$.empty(), partitions, 1, EMBEDDED_KAFKA_CONFIG);
+        EmbeddedKafka$.MODULE$.createCustomTopic(QUEUE, Map$.MODULE$.empty(), PARTITIONS, 1, EMBEDDED_KAFKA_CONFIG);
+        EmbeddedKafka$.MODULE$.createCustomTopic(OFFSETS, Map$.MODULE$.empty(), PARTITIONS, 1, EMBEDDED_KAFKA_CONFIG);
         LOG.info("Kafka started");
 
         // Using the custom partitioner, each offset-partition will contain markers only from a single queue-partition.
@@ -97,7 +100,7 @@ public class App {
     private static void sendMessages() {
         LOG.info("Sending ...");
 
-        for(int i = 0; i < 100; i++) {
+        for(int i = 0; i < TOTAL_MSGS; i++) {
             ByteBuffer data = ByteBuffer.allocate(4).putInt(i);
             msgProducer.send(new ProducerRecord<>(QUEUE, data));
             try { Thread.sleep(1000L); } catch (InterruptedException e) { throw new RuntimeException(e); }
@@ -125,7 +128,8 @@ public class App {
                 offsetProducer.send(new ProducerRecord<>(OFFSETS,
                         markerKey,
                         new MarkerValue(false, clock.millis())));
-                LOG.info("Done processing message: " + msg);
+
+                afterMessageProcessed(msg);
             } else {
                 LOG.info("Dropping message: " + msg);
             }
@@ -136,5 +140,16 @@ public class App {
         Thread t = new Thread(r);
         t.setDaemon(true);
         t.start();
+    }
+
+    private static Map<Integer, Integer> processedMessages = new ConcurrentHashMap<>();
+    private static void afterMessageProcessed(int msg) {
+        Integer previous = processedMessages.put(msg, msg);
+        if (previous != null) {
+            LOG.warn(String.format("Message %d was already processed!", msg));
+        } else {
+            LOG.info(String.format("Done processing message: %d. Total processed: %d/%d.",
+                    msg, processedMessages.size(), TOTAL_MSGS));
+        }
     }
 }

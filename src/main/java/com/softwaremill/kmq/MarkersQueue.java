@@ -3,12 +3,16 @@ package com.softwaremill.kmq;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.PriorityQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.PriorityBlockingQueue;
 import java.util.function.Function;
 
+/**
+ * Thread-safe if `isEnded` is thread-safe.
+ */
 public class MarkersQueue {
     private final Function<MarkerKey, Boolean> isEnded;
-    private final PriorityQueue<Marker> markersQueue;
+    private final BlockingQueue<Marker> markersQueue;
     private final Clock clock;
     private final long messageTimeout;
 
@@ -16,7 +20,7 @@ public class MarkersQueue {
         this.isEnded = isEnded;
         this.clock = clock;
         this.messageTimeout = messageTimeout;
-        markersQueue = new PriorityQueue<>(); // TODO: bounds, extract to class
+        markersQueue = new PriorityBlockingQueue<>(); // TODO: bounds
     }
 
     public void offer(MarkerKey k, MarkerValue v) {

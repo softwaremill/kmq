@@ -22,7 +22,7 @@ public class RedeliveryTracker {
 
         builder.addSource("source", offsetTopic)
                 .addProcessor("process", () -> new RedeliveryProcessor(dataTopic,
-                        offsetTopic, KafkaClients.createConsumer(ByteArrayDeserializer.class, ByteArrayDeserializer.class),
+                        KafkaClients.createConsumer(ByteArrayDeserializer.class, ByteArrayDeserializer.class),
                         KafkaClients.createProducer(ByteArraySerializer.class, ByteArraySerializer.class)), "source")
                 .addStateStore(startedMarkers, "process");
 
