@@ -17,10 +17,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.PriorityQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -39,7 +37,7 @@ public class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
 
     private ProcessorContext context;
     private KeyValueStore<MarkerKey, MarkerValue> startedMarkers;
-    private PriorityQueue<Marker> markersQueue;
+    private MarkersQueue markersQueue;
     private int assignedPartition = -1;
     private Closeable closePunctuateSender;
 
@@ -63,7 +61,8 @@ public class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
         //noinspection unchecked
         startedMarkers = (KeyValueStore<MarkerKey, MarkerValue>) context.getStateStore("startedMarkers");
 
-        markersQueue = new PriorityQueue<>(); // TODO: bounds, extract to class
+        this.markersQueue = new MarkersQueue(k -> startedMarkers.get(k) == null, clock, MESSAGE_TIMEOUT);
+
         restoreMarkersQueue();
     }
 
@@ -78,10 +77,12 @@ public class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
             punctuate();
         } else if (value.isStart()) {
             startedMarkers.put(key, value);
-            markersQueue.offer(new Marker(key, value));
+            markersQueue.offer(key, value);
         } else {
             startedMarkers.delete(key);
         }
+
+        context.commit();
     }
 
     private void ensurePartitionAssigned(MarkerKey key) {
@@ -117,8 +118,7 @@ public class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
     public void punctuate(long timestamp) {}
 
     private void punctuate() {
-        System.out.println("Marker queue size: " + markersQueue.size());
-        removeEndedMarkersFromQueue();
+        markersQueue.removeEndedMarkers();
         redeliverTimedoutMessages();
         context.commit();
     }
@@ -133,39 +133,11 @@ public class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
         }
     }
 
-    private void removeEndedMarkersFromQueue() {
-        while (isMarkerQueueHeadEnded()) {
-            markersQueue.poll();
-        }
-    }
-
-    private boolean isMarkerQueueHeadEnded() {
-        Marker head = markersQueue.peek();
-        return head != null && startedMarkers.get(head.key) == null;
-    }
-
     private void redeliverTimedoutMessages() {
-        List<Marker> toRedeliver = new ArrayList<>();
-        while (shouldRedeliverQueueHead()) {
-            Marker queueHead = markersQueue.poll();
-            // the first marker, if any, is not ended for sure (b/c of the cleanup that's done on every punctuate),
-            // but subsequent markers don't have to be.
-            if (startedMarkers.get(queueHead.key) != null) {
-                toRedeliver.add(queueHead);
-            }
-        }
-
-        redeliver(toRedeliver);
+        redeliver(markersQueue.markersToRedeliver());
     }
 
-    private boolean shouldRedeliverQueueHead() {
-        if (!markersQueue.isEmpty()) {
-            long queueHeadTimestamp = markersQueue.peek().value.getProcessingTimestamp();
-            return clock.millis() - queueHeadTimestamp >= MESSAGE_TIMEOUT;
-        } else return false;
-    }
-
-    private void redeliver(List<Marker> toRedeliver) {
+    private void redeliver(List<MarkersQueue.Marker> toRedeliver) {
         toRedeliver.stream()
                 .map(m -> new RedeliveredMarker(m, redeliver(m)))
                 .forEach(rm -> {
@@ -179,7 +151,7 @@ public class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
                 });
     }
 
-    private Future<RecordMetadata> redeliver(Marker marker) {
+    private Future<RecordMetadata> redeliver(MarkersQueue.Marker marker) {
         TopicPartition tp = new TopicPartition(dataTopic, marker.key.getPartition());
         // Could be optimized by doing a seek to the first message to redeliver, and then if messages are "close",
         // polling until the right offset is reached.
@@ -202,32 +174,16 @@ public class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
     private void restoreMarkersQueue() {
         KeyValueIterator<MarkerKey, MarkerValue> allIterator = startedMarkers.all();
         allIterator.forEachRemaining(kv -> {
-            if (kv.value != null) markersQueue.offer(new Marker(kv.key, kv.value));
+            if (kv.value != null) markersQueue.offer(kv.key, kv.value);
         });
         allIterator.close();
     }
 
-    private static class Marker implements Comparable<Marker> {
-        private final MarkerKey key;
-        private final MarkerValue value;
-
-        public Marker(MarkerKey key, MarkerValue value) {
-            this.key = key;
-            this.value = value;
-        }
-
-        @Override
-        public int compareTo(Marker o) {
-            long diff = value.getProcessingTimestamp() - o.value.getProcessingTimestamp();
-            return diff == 0 ? 0 : (diff < 0 ? -1 : 1);
-        }
-    }
-
     private static class RedeliveredMarker {
-        private final Marker marker;
+        private final MarkersQueue.Marker marker;
         private final Future<RecordMetadata> sendResult;
 
-        public RedeliveredMarker(Marker marker, Future<RecordMetadata> sendResult) {
+        public RedeliveredMarker(MarkersQueue.Marker marker, Future<RecordMetadata> sendResult) {
             this.marker = marker;
             this.sendResult = sendResult;
         }
