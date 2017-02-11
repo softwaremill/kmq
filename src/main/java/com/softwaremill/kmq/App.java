@@ -1,6 +1,7 @@
 package com.softwaremill.kmq;
 
 import net.manub.embeddedkafka.EmbeddedKafka$;
+import net.manub.embeddedkafka.EmbeddedKafkaConfig;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -22,8 +23,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import static com.softwaremill.kmq.KafkaClients.*;
-
 public class App {
     private final static Logger LOG = LoggerFactory.getLogger(App.class);
 
@@ -40,21 +39,23 @@ public class App {
     private static final int TOTAL_MSGS = 100;
 
     public static void main(String[] args) throws InterruptedException, IOException {
+        EmbeddedKafkaConfig kafkaConfig = EmbeddedKafkaConfig.defaultConfig();
+        KafkaClients clients = new KafkaClients("localhost:" + kafkaConfig.kafkaPort());
 
-        EmbeddedKafka$.MODULE$.start(EMBEDDED_KAFKA_CONFIG);
+        EmbeddedKafka$.MODULE$.start(kafkaConfig);
         // The offsets topic has the same # of partitions as the queue topic.
-        EmbeddedKafka$.MODULE$.createCustomTopic(QUEUE, Map$.MODULE$.empty(), PARTITIONS, 1, EMBEDDED_KAFKA_CONFIG);
-        EmbeddedKafka$.MODULE$.createCustomTopic(OFFSETS, Map$.MODULE$.empty(), PARTITIONS, 1, EMBEDDED_KAFKA_CONFIG);
+        EmbeddedKafka$.MODULE$.createCustomTopic(QUEUE, Map$.MODULE$.empty(), PARTITIONS, 1, kafkaConfig);
+        EmbeddedKafka$.MODULE$.createCustomTopic(OFFSETS, Map$.MODULE$.empty(), PARTITIONS, 1, kafkaConfig);
         LOG.info("Kafka started");
 
         // Using the custom partitioner, each offset-partition will contain markers only from a single queue-partition.
-        offsetProducer = createProducer(MarkerKey.MarkerKeySerializer.class, MarkerValue.MarkerValueSerializer.class,
+        offsetProducer = clients.createProducer(MarkerKey.MarkerKeySerializer.class, MarkerValue.MarkerValueSerializer.class,
                 Collections.singletonMap(ProducerConfig.PARTITIONER_CLASS_CONFIG, ParititionFromMarkerKey.class));
-        msgProducer = createProducer(ByteBufferSerializer.class, ByteBufferSerializer.class);
+        msgProducer = clients.createProducer(ByteBufferSerializer.class, ByteBufferSerializer.class);
 
         startInBackground(App::sendMessages);
-        startInBackground(App::processMessages);
-        Closeable redelivery = RedeliveryTracker.setup(QUEUE, OFFSETS);
+        startInBackground(() -> processMessages(clients));
+        Closeable redelivery = RedeliveryTracker.setup(clients, QUEUE, OFFSETS);
 
         System.in.read();
 
@@ -63,8 +64,8 @@ public class App {
         LOG.info("Kafka stopped");
     }
 
-    private static void processMessages() {
-        KafkaConsumer<ByteBuffer, ByteBuffer> msgConsumer = createConsumer(ByteBufferDeserializer.class, ByteBufferDeserializer.class);
+    private static void processMessages(KafkaClients clients) {
+        KafkaConsumer<ByteBuffer, ByteBuffer> msgConsumer = clients.createConsumer(ByteBufferDeserializer.class, ByteBufferDeserializer.class);
         msgConsumer.subscribe(Collections.singletonList(QUEUE));
 
         LOG.info("Processing ...");
@@ -91,7 +92,7 @@ public class App {
                 executorService.execute(processDataRunnable(record.value(), MarkerKey.fromRecord(record)));
             }
 
-            // 4. after all start markers are sent, commit offsets. This need to be done as close to writing the
+            // 4. after all start markers are sent, commit offsets. This needs to be done as close to writing the
             // start marker as possible, to minimize the number of double re-processed messages in case of failure.
             msgConsumer.commitSync();
         }
@@ -135,6 +136,8 @@ public class App {
             }
         };
     }
+
+    // ---
 
     private static void startInBackground(Runnable r) {
         Thread t = new Thread(r);

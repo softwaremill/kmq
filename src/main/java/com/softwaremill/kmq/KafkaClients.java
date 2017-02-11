@@ -1,6 +1,5 @@
 package com.softwaremill.kmq;
 
-import net.manub.embeddedkafka.EmbeddedKafkaConfig;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -14,16 +13,20 @@ import java.util.Map;
 import java.util.Properties;
 
 public class KafkaClients {
-    public final static EmbeddedKafkaConfig EMBEDDED_KAFKA_CONFIG = EmbeddedKafkaConfig.defaultConfig();
+    private final String bootstrapServer;
 
-    public static <K, V> KafkaProducer<K, V> createProducer(Class<? extends Serializer<K>> keySerializer, Class<? extends Serializer<V>> valueSerializer) {
+    public KafkaClients(String bootstrapServer) {
+        this.bootstrapServer = bootstrapServer;
+    }
+
+    public <K, V> KafkaProducer<K, V> createProducer(Class<? extends Serializer<K>> keySerializer, Class<? extends Serializer<V>> valueSerializer) {
         return createProducer(keySerializer, valueSerializer, Collections.emptyMap());
     }
 
-    public static <K, V> KafkaProducer<K, V> createProducer(Class<? extends Serializer<K>> keySerializer, Class<? extends Serializer<V>> valueSerializer,
+    public <K, V> KafkaProducer<K, V> createProducer(Class<? extends Serializer<K>> keySerializer, Class<? extends Serializer<V>> valueSerializer,
                                                             Map<String, Object> extraConfig) {
         Properties props = new Properties();
-        props.put("bootstrap.servers", "localhost:" + EMBEDDED_KAFKA_CONFIG.kafkaPort());
+        props.put("bootstrap.servers", bootstrapServer);
         props.put("acks", "all");
         props.put("retries", 0);
         props.put("batch.size", 16384);
@@ -38,9 +41,9 @@ public class KafkaClients {
         return new KafkaProducer<>(props);
     }
 
-    public static <K, V> KafkaConsumer<K, V> createConsumer(Class<? extends Deserializer<K>> keyDeserializer, Class<? extends Deserializer<V>> valueDeserializer) {
+    public <K, V> KafkaConsumer<K, V> createConsumer(Class<? extends Deserializer<K>> keyDeserializer, Class<? extends Deserializer<V>> valueDeserializer) {
         Properties props = new Properties();
-        props.put("bootstrap.servers", "localhost:" + EMBEDDED_KAFKA_CONFIG.kafkaPort());
+        props.put("bootstrap.servers", bootstrapServer);
         props.put("group.id", "test");
         props.put("enable.auto.commit", "false");
         props.put("key.deserializer", keyDeserializer.getName());
@@ -50,10 +53,10 @@ public class KafkaClients {
         return new KafkaConsumer<>(props);
     }
 
-    public static Properties kafkaStreamsProps(String appId, Class<? extends Serde<?>> keySerde, Class<? extends Serde<?>> valueSerde) {
+    public Properties streamsProps(String appId, Class<? extends Serde<?>> keySerde, Class<? extends Serde<?>> valueSerde) {
         Properties props = new Properties();
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, appId);
-        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:" + EMBEDDED_KAFKA_CONFIG.kafkaPort());
+        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServer);
         props.put(StreamsConfig.KEY_SERDE_CLASS_CONFIG, keySerde.getName());
         props.put(StreamsConfig.VALUE_SERDE_CLASS_CONFIG, valueSerde.getName());
         props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, "8");
