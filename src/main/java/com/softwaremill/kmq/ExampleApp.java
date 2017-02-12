@@ -19,8 +19,8 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class App {
-    private final static Logger LOG = LoggerFactory.getLogger(App.class);
+public class ExampleApp {
+    private final static Logger LOG = LoggerFactory.getLogger(ExampleApp.class);
 
     public static final String MESSAGES_TOPIC = "queue";
     public static final String MARKERS_TOPIC = "markers";
@@ -41,7 +41,7 @@ public class App {
         LOG.info("Kafka started");
 
         KmqClient<ByteBuffer, ByteBuffer> kmqClient = new KmqClient<>(MESSAGES_TOPIC, MARKERS_TOPIC,
-                App::processMessage, clock, clients,
+                ExampleApp::processMessage, clock, clients,
                 ByteBufferDeserializer.class, ByteBufferDeserializer.class);
 
         Closeable redelivery = RedeliveryTracker.setup(clients, MESSAGES_TOPIC, MARKERS_TOPIC, MESSAGE_TIMEOUT);
