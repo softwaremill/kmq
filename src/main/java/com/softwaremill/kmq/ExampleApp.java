@@ -22,8 +22,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ExampleApp {
     private final static Logger LOG = LoggerFactory.getLogger(ExampleApp.class);
 
-    public static final String MESSAGES_TOPIC = "queue";
-    public static final String MARKERS_TOPIC = "markers";
+    private static final String MESSAGES_TOPIC = "queue";
+    private static final String MARKERS_TOPIC = "markers";
     private final static long MESSAGE_TIMEOUT = Duration.ofSeconds(30).toMillis();
     private static final int PARTITIONS = 1;
     private static final int TOTAL_MSGS = 100;
