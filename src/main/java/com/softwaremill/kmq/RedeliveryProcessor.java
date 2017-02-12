@@ -54,6 +54,8 @@ public class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
                 // when a message is redelivered, removing it from the store
                 k -> { startedMarkers.delete(k); return null; });
         closeRedeliveryExecutor = RedeliveryExecutor.schedule(redeliveryExecutor, 1, TimeUnit.SECONDS);
+
+        LOG.info(String.format("Started new redelivery processor for message topic %s", msgTopic));
     }
 
     @Override

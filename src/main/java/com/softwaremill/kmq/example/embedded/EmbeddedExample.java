@@ -1,5 +1,8 @@
-package com.softwaremill.kmq;
+package com.softwaremill.kmq.example.embedded;
 
+import com.softwaremill.kmq.KafkaClients;
+import com.softwaremill.kmq.KmqClient;
+import com.softwaremill.kmq.RedeliveryTracker;
 import net.manub.embeddedkafka.EmbeddedKafka$;
 import net.manub.embeddedkafka.EmbeddedKafkaConfig;
 import org.apache.kafka.clients.consumer.*;
@@ -19,8 +22,8 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class ExampleApp {
-    private final static Logger LOG = LoggerFactory.getLogger(ExampleApp.class);
+public class EmbeddedExample {
+    private final static Logger LOG = LoggerFactory.getLogger(EmbeddedExample.class);
 
     private static final String MESSAGES_TOPIC = "queue";
     private static final String MARKERS_TOPIC = "markers";
@@ -41,7 +44,7 @@ public class ExampleApp {
         LOG.info("Kafka started");
 
         KmqClient<ByteBuffer, ByteBuffer> kmqClient = new KmqClient<>(MESSAGES_TOPIC, MARKERS_TOPIC,
-                ExampleApp::processMessage, clock, clients,
+                EmbeddedExample::processMessage, clock, clients,
                 ByteBufferDeserializer.class, ByteBufferDeserializer.class);
 
         Closeable redelivery = RedeliveryTracker.setup(clients, MESSAGES_TOPIC, MARKERS_TOPIC, MESSAGE_TIMEOUT);
