@@ -33,7 +33,7 @@ public class KmqClient<K, V> {
 
     private static ExecutorService executorService = Executors.newCachedThreadPool();
 
-    public KmqClient(String msgTopic, String markerTopic, Function<ConsumerRecord<K, V>, Boolean> processMsg,
+    public KmqClient(String groupId, String msgTopic, String markerTopic, Function<ConsumerRecord<K, V>, Boolean> processMsg,
                      Clock clock, KafkaClients clients, Class<? extends Deserializer<K>> keyDeserializer,
                      Class<? extends Deserializer<V>> valueDeserializer) {
 
@@ -42,7 +42,7 @@ public class KmqClient<K, V> {
         this.processData = processMsg;
         this.clock = clock;
 
-        this.msgConsumer = clients.createConsumer(keyDeserializer, valueDeserializer);
+        this.msgConsumer = clients.createConsumer(groupId, keyDeserializer, valueDeserializer);
         // Using the custom partitioner, each offset-partition will contain markers only from a single queue-partition.
         this.markerProducer = clients.createProducer(
                 MarkerKey.MarkerKeySerializer.class, MarkerValue.MarkerValueSerializer.class,

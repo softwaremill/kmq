@@ -41,7 +41,9 @@ public class KafkaClients {
         return new KafkaProducer<>(props);
     }
 
-    public <K, V> KafkaConsumer<K, V> createConsumer(Class<? extends Deserializer<K>> keyDeserializer, Class<? extends Deserializer<V>> valueDeserializer) {
+    public <K, V> KafkaConsumer<K, V> createConsumer(String groupId,
+                                                     Class<? extends Deserializer<K>> keyDeserializer,
+                                                     Class<? extends Deserializer<V>> valueDeserializer) {
         Properties props = new Properties();
         props.put("bootstrap.servers", bootstrapServer);
         props.put("group.id", "test");
@@ -49,6 +51,7 @@ public class KafkaClients {
         props.put("key.deserializer", keyDeserializer.getName());
         props.put("value.deserializer", valueDeserializer.getName());
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
 
         return new KafkaConsumer<>(props);
     }

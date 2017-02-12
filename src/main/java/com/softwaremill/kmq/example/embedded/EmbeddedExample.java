@@ -25,6 +25,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class EmbeddedExample {
     private final static Logger LOG = LoggerFactory.getLogger(EmbeddedExample.class);
 
+    private static final String KMQ_CLIENT_GROUP_ID = "kmq_client";
+    private static final String REDELIVERY_APP_ID = "kmq_redelivery";
     private static final String MESSAGES_TOPIC = "queue";
     private static final String MARKERS_TOPIC = "markers";
     private final static long MESSAGE_TIMEOUT = Duration.ofSeconds(30).toMillis();
@@ -43,11 +45,11 @@ public class EmbeddedExample {
         EmbeddedKafka$.MODULE$.createCustomTopic(MARKERS_TOPIC, Map$.MODULE$.empty(), PARTITIONS, 1, kafkaConfig);
         LOG.info("Kafka started");
 
-        KmqClient<ByteBuffer, ByteBuffer> kmqClient = new KmqClient<>(MESSAGES_TOPIC, MARKERS_TOPIC,
+        KmqClient<ByteBuffer, ByteBuffer> kmqClient = new KmqClient<>(KMQ_CLIENT_GROUP_ID, MESSAGES_TOPIC, MARKERS_TOPIC,
                 EmbeddedExample::processMessage, clock, clients,
                 ByteBufferDeserializer.class, ByteBufferDeserializer.class);
 
-        Closeable redelivery = RedeliveryTracker.setup(clients, MESSAGES_TOPIC, MARKERS_TOPIC, MESSAGE_TIMEOUT);
+        Closeable redelivery = RedeliveryTracker.setup(clients, REDELIVERY_APP_ID, MESSAGES_TOPIC, MARKERS_TOPIC, MESSAGE_TIMEOUT);
         startInBackground(kmqClient::start);
         startInBackground(() -> sendMessages(clients));
 
