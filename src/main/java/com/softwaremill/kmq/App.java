@@ -15,6 +15,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -23,11 +24,11 @@ public class App {
 
     public static final String MESSAGES_TOPIC = "queue";
     public static final String MARKERS_TOPIC = "markers";
-
-    private static final Clock clock = Clock.systemDefaultZone();
-
+    private final static long MESSAGE_TIMEOUT = Duration.ofSeconds(30).toMillis();
     private static final int PARTITIONS = 1;
     private static final int TOTAL_MSGS = 100;
+
+    private static final Clock clock = Clock.systemDefaultZone();
 
     public static void main(String[] args) throws InterruptedException, IOException {
         EmbeddedKafkaConfig kafkaConfig = EmbeddedKafkaConfig.defaultConfig();
@@ -43,7 +44,7 @@ public class App {
                 App::processMessage, clock, clients,
                 ByteBufferDeserializer.class, ByteBufferDeserializer.class);
 
-        Closeable redelivery = RedeliveryTracker.setup(clients, MESSAGES_TOPIC, MARKERS_TOPIC);
+        Closeable redelivery = RedeliveryTracker.setup(clients, MESSAGES_TOPIC, MARKERS_TOPIC, MESSAGE_TIMEOUT);
         startInBackground(kmqClient::start);
         startInBackground(() -> sendMessages(clients));
 

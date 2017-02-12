@@ -12,7 +12,6 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 import java.io.IOException;
 import java.time.Clock;
-import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 public class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
@@ -20,7 +19,6 @@ public class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
 
     public final static String STARTED_MARKERS_STORE_NAME = "startedMarkers";
 
-    private final static long MESSAGE_TIMEOUT = Duration.ofSeconds(30).toMillis();
     private final Clock clock = Clock.systemDefaultZone();
 
     private ProcessorContext context;
@@ -29,12 +27,15 @@ public class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
     private Closeable closeRedeliveryExecutor;
 
     private final String msgTopic;
+    private final long msgTimeout;
     private final KafkaConsumer<byte[], byte[]> consumer;
     private final KafkaProducer<byte[], byte[]> producer;
 
-    public RedeliveryProcessor(String msgTopic, KafkaConsumer<byte[], byte[]> consumer,
+    public RedeliveryProcessor(String msgTopic, long msgTimeout,
+                               KafkaConsumer<byte[], byte[]> consumer,
                                KafkaProducer<byte[], byte[]> producer) {
         this.msgTopic = msgTopic;
+        this.msgTimeout = msgTimeout;
         this.consumer = consumer;
         this.producer = producer;
     }
@@ -46,7 +47,7 @@ public class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
         //noinspection unchecked
         startedMarkers = (KeyValueStore<MarkerKey, MarkerValue>) context.getStateStore("startedMarkers");
 
-        this.markersQueue = new MarkersQueue(k -> startedMarkers.get(k) == null, clock, MESSAGE_TIMEOUT);
+        this.markersQueue = new MarkersQueue(k -> startedMarkers.get(k) == null, clock, msgTimeout);
         restoreMarkersQueue();
 
         RedeliveryExecutor redeliveryExecutor = new RedeliveryExecutor(msgTopic, markersQueue, consumer, producer,
