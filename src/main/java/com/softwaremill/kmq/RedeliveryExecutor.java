@@ -24,7 +24,7 @@ public class RedeliveryExecutor {
 
     private final static long POLL_TIMEOUT = Duration.ofSeconds(10).toMillis();
 
-    private final String dataTopic;
+    private final String msgTopic;
     private final MarkersQueue markersQueue;
     private final KafkaConsumer<byte[], byte[]> consumer;
     private final KafkaProducer<byte[], byte[]> producer;
@@ -32,9 +32,9 @@ public class RedeliveryExecutor {
 
     private int assignedPartition = -1;
 
-    public RedeliveryExecutor(String dataTopic, MarkersQueue markersQueue, KafkaConsumer<byte[], byte[]> consumer,
+    public RedeliveryExecutor(String msgTopic, MarkersQueue markersQueue, KafkaConsumer<byte[], byte[]> consumer,
                               KafkaProducer<byte[], byte[]> producer, Function<MarkerKey, Void> onMessageRedelivered) {
-        this.dataTopic = dataTopic;
+        this.msgTopic = msgTopic;
         this.markersQueue = markersQueue;
         this.consumer = consumer;
         this.producer = producer;
@@ -63,13 +63,13 @@ public class RedeliveryExecutor {
     private Future<RecordMetadata> redeliver(MarkersQueue.Marker marker) {
         ensurePartitionAssigned(marker.key);
 
-        TopicPartition tp = new TopicPartition(dataTopic, marker.key.getPartition());
+        TopicPartition tp = new TopicPartition(msgTopic, marker.key.getPartition());
         // Could be optimized by doing a seek to the first message to redeliver, and then if messages are "close",
         // polling until the right offset is reached.
         consumer.seek(tp, marker.key.getOffset());
         List<ConsumerRecord<byte[], byte[]>> pollResults = consumer.poll(POLL_TIMEOUT).records(tp);
         if (pollResults.isEmpty()) {
-            throw new IllegalStateException("Cannot redeliver " + marker.key + " from topic " + dataTopic + ", due to data fetch timeout");
+            throw new IllegalStateException("Cannot redeliver " + marker.key + " from topic " + msgTopic + ", due to data fetch timeout");
         } else {
             ConsumerRecord<byte[], byte[]> toSend = pollResults.get(0);
             LOG.info("Redelivering " + marker.key.getOffset());
@@ -95,7 +95,7 @@ public class RedeliveryExecutor {
     private void ensurePartitionAssigned(MarkerKey key) {
         if (assignedPartition == -1) {
             assignedPartition = key.getPartition();
-            consumer.assign(Collections.singleton(new TopicPartition(dataTopic, assignedPartition)));
+            consumer.assign(Collections.singleton(new TopicPartition(msgTopic, assignedPartition)));
 
             LOG.info(String.format("Assigned partition %d.", assignedPartition));
         } else {

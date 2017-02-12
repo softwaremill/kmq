@@ -10,7 +10,7 @@ import org.apache.kafka.streams.state.Stores;
 import java.io.Closeable;
 
 public class RedeliveryTracker {
-    public static Closeable setup(KafkaClients clients, String dataTopic, String offsetTopic) {
+    public static Closeable setup(KafkaClients clients, String msgTopic, String markerTopic) {
         StateStoreSupplier startedMarkers = Stores.create(RedeliveryProcessor.STARTED_MARKERS_STORE_NAME)
                 .withKeys(new MarkerKey.MarkerKeySerde())
                 .withValues(new MarkerValue.MarkerValueSerde())
@@ -20,8 +20,8 @@ public class RedeliveryTracker {
 
         TopologyBuilder builder = new TopologyBuilder();
 
-        builder.addSource("source", offsetTopic)
-                .addProcessor("process", () -> new RedeliveryProcessor(dataTopic,
+        builder.addSource("source", markerTopic)
+                .addProcessor("process", () -> new RedeliveryProcessor(msgTopic,
                         clients.createConsumer(ByteArrayDeserializer.class, ByteArrayDeserializer.class),
                         clients.createProducer(ByteArraySerializer.class, ByteArraySerializer.class)), "source")
                 .addStateStore(startedMarkers, "process");

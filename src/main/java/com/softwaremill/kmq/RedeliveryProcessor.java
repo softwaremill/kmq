@@ -28,13 +28,13 @@ public class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
     private MarkersQueue markersQueue;
     private Closeable closeRedeliveryExecutor;
 
-    private final String dataTopic;
+    private final String msgTopic;
     private final KafkaConsumer<byte[], byte[]> consumer;
     private final KafkaProducer<byte[], byte[]> producer;
 
-    public RedeliveryProcessor(String dataTopic, KafkaConsumer<byte[], byte[]> consumer,
+    public RedeliveryProcessor(String msgTopic, KafkaConsumer<byte[], byte[]> consumer,
                                KafkaProducer<byte[], byte[]> producer) {
-        this.dataTopic = dataTopic;
+        this.msgTopic = msgTopic;
         this.consumer = consumer;
         this.producer = producer;
     }
@@ -49,7 +49,7 @@ public class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
         this.markersQueue = new MarkersQueue(k -> startedMarkers.get(k) == null, clock, MESSAGE_TIMEOUT);
         restoreMarkersQueue();
 
-        RedeliveryExecutor redeliveryExecutor = new RedeliveryExecutor(dataTopic, markersQueue, consumer, producer,
+        RedeliveryExecutor redeliveryExecutor = new RedeliveryExecutor(msgTopic, markersQueue, consumer, producer,
                 // when a message is redelivered, removing it from the store
                 k -> { startedMarkers.delete(k); return null; });
         closeRedeliveryExecutor = RedeliveryExecutor.schedule(redeliveryExecutor, 1, TimeUnit.SECONDS);
