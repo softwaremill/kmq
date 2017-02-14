@@ -10,10 +10,9 @@ import org.apache.kafka.streams.state.Stores;
 import java.io.Closeable;
 
 public class RedeliveryTracker {
-    public static Closeable setup(KafkaClients clients, String redeliveryAppId, String msgTopic, String markerTopic,
-                                  long msgTimeout) {
+    public static Closeable setup(KafkaClients clients, KmqConfig config) {
 
-        StateStoreSupplier startedMarkers = Stores.create(RedeliveryProcessor.STARTED_MARKERS_STORE_NAME)
+        StateStoreSupplier startedMarkers = Stores.create(config.getStartedMarkersStoreName())
                 .withKeys(new MarkerKey.MarkerKeySerde())
                 .withValues(new MarkerValue.MarkerValueSerde())
                 .persistent()
@@ -22,13 +21,13 @@ public class RedeliveryTracker {
 
         TopologyBuilder builder = new TopologyBuilder();
 
-        builder.addSource("source", markerTopic)
-                .addProcessor("process", () -> new RedeliveryProcessor(msgTopic, msgTimeout,
+        builder.addSource("source", config.getMarkerTopic())
+                .addProcessor("process", () -> new RedeliveryProcessor(config,
                         clients.createConsumer(null, ByteArrayDeserializer.class, ByteArrayDeserializer.class),
                         clients.createProducer(ByteArraySerializer.class, ByteArraySerializer.class)), "source")
                 .addStateStore(startedMarkers, "process");
 
-        KafkaStreams streams = new KafkaStreams(builder, clients.streamsProps(redeliveryAppId,
+        KafkaStreams streams = new KafkaStreams(builder, clients.streamsProps(config.getRedeliveryAppId(),
                 MarkerKey.MarkerKeySerde.class, MarkerValue.MarkerValueSerde.class));
 
         streams.start();

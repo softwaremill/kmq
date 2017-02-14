@@ -17,8 +17,6 @@ import java.util.concurrent.TimeUnit;
 public class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
     private final static Logger LOG = LoggerFactory.getLogger(RedeliveryProcessor.class);
 
-    public final static String STARTED_MARKERS_STORE_NAME = "startedMarkers";
-
     private final Clock clock = Clock.systemDefaultZone();
 
     private ProcessorContext context;
@@ -26,16 +24,14 @@ public class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
     private MarkersQueue markersQueue;
     private Closeable closeRedeliveryExecutor;
 
-    private final String msgTopic;
-    private final long msgTimeout;
+    private final KmqConfig config;
     private final KafkaConsumer<byte[], byte[]> redeliveredMsgsConsumer;
     private final KafkaProducer<byte[], byte[]> redeliveredMsgsProducer;
 
-    public RedeliveryProcessor(String msgTopic, long msgTimeout,
+    public RedeliveryProcessor(KmqConfig config,
                                KafkaConsumer<byte[], byte[]> redeliveredMsgsConsumer,
                                KafkaProducer<byte[], byte[]> redeliveredMsgsProducer) {
-        this.msgTopic = msgTopic;
-        this.msgTimeout = msgTimeout;
+        this.config = config;
         this.redeliveredMsgsConsumer = redeliveredMsgsConsumer;
         this.redeliveredMsgsProducer = redeliveredMsgsProducer;
     }
@@ -45,18 +41,18 @@ public class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
         this.context = context;
 
         //noinspection unchecked
-        startedMarkers = (KeyValueStore<MarkerKey, MarkerValue>) context.getStateStore("startedMarkers");
+        startedMarkers = (KeyValueStore<MarkerKey, MarkerValue>) context.getStateStore(config.getStartedMarkersStoreName());
 
-        this.markersQueue = new MarkersQueue(k -> startedMarkers.get(k) == null, clock, msgTimeout);
+        this.markersQueue = new MarkersQueue(k -> startedMarkers.get(k) == null, clock, config.getMsgTimeout());
         restoreMarkersQueue();
 
-        RedeliveryExecutor redeliveryExecutor = new RedeliveryExecutor(msgTopic, markersQueue,
+        RedeliveryExecutor redeliveryExecutor = new RedeliveryExecutor(config.getMsgTopic(), markersQueue,
                 redeliveredMsgsConsumer, redeliveredMsgsProducer,
                 // when a message is redelivered, removing it from the store
                 k -> { startedMarkers.delete(k); return null; });
         closeRedeliveryExecutor = RedeliveryExecutor.schedule(redeliveryExecutor, 1, TimeUnit.SECONDS);
 
-        LOG.info(String.format("Started new redelivery processor for message topic %s", msgTopic));
+        LOG.info(String.format("Started new redelivery processor for message topic %s", config.getMsgTopic()));
     }
 
     @Override

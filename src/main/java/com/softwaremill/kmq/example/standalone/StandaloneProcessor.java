@@ -20,7 +20,7 @@ class StandaloneProcessor {
     private final static Logger LOG = LoggerFactory.getLogger(StandaloneProcessor.class);
 
     public static void main(String[] args) throws InterruptedException, IOException {
-        KmqClient<ByteBuffer, ByteBuffer> kmqClient = new KmqClient<>(KMQ_CLIENT_GROUP_ID, MESSAGES_TOPIC, MARKERS_TOPIC,
+        KmqClient<ByteBuffer, ByteBuffer> kmqClient = new KmqClient<>(KMQ_CONFIG,
                 StandaloneProcessor::processMessage, Clock.systemDefaultZone(), KAFKA_CLIENTS,
                 ByteBufferDeserializer.class, ByteBufferDeserializer.class);
 

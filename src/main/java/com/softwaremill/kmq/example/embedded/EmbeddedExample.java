@@ -2,6 +2,7 @@ package com.softwaremill.kmq.example.embedded;
 
 import com.softwaremill.kmq.KafkaClients;
 import com.softwaremill.kmq.KmqClient;
+import com.softwaremill.kmq.KmqConfig;
 import com.softwaremill.kmq.RedeliveryTracker;
 import net.manub.embeddedkafka.EmbeddedKafka$;
 import net.manub.embeddedkafka.EmbeddedKafkaConfig;
@@ -25,33 +26,31 @@ import java.util.concurrent.ConcurrentHashMap;
 public class EmbeddedExample {
     private final static Logger LOG = LoggerFactory.getLogger(EmbeddedExample.class);
 
-    private static final String KMQ_CLIENT_GROUP_ID = "kmq_client";
-    private static final String REDELIVERY_APP_ID = "kmq_redelivery";
-    private static final String MESSAGES_TOPIC = "queue";
-    private static final String MARKERS_TOPIC = "markers";
-    private final static long MESSAGE_TIMEOUT = Duration.ofSeconds(30).toMillis();
     private static final int PARTITIONS = 1;
     private static final int TOTAL_MSGS = 100;
 
     private static final Clock clock = Clock.systemDefaultZone();
 
     public static void main(String[] args) throws InterruptedException, IOException {
+        KmqConfig kmqConfig = new KmqConfig("queue", "markers", "kmq_client",
+                "kmq_redelivery", Duration.ofSeconds(10).toMillis(), "kmq_started_markers");
+
         EmbeddedKafkaConfig kafkaConfig = EmbeddedKafkaConfig.defaultConfig();
         KafkaClients clients = new KafkaClients("localhost:" + kafkaConfig.kafkaPort());
 
         EmbeddedKafka$.MODULE$.start(kafkaConfig);
         // The offsets topic has the same # of partitions as the queue topic.
-        EmbeddedKafka$.MODULE$.createCustomTopic(MESSAGES_TOPIC, Map$.MODULE$.empty(), PARTITIONS, 1, kafkaConfig);
-        EmbeddedKafka$.MODULE$.createCustomTopic(MARKERS_TOPIC, Map$.MODULE$.empty(), PARTITIONS, 1, kafkaConfig);
+        EmbeddedKafka$.MODULE$.createCustomTopic(kmqConfig.getMarkerTopic(), Map$.MODULE$.empty(), PARTITIONS, 1, kafkaConfig);
+        EmbeddedKafka$.MODULE$.createCustomTopic(kmqConfig.getMsgTopic(), Map$.MODULE$.empty(), PARTITIONS, 1, kafkaConfig);
         LOG.info("Kafka started");
 
-        KmqClient<ByteBuffer, ByteBuffer> kmqClient = new KmqClient<>(KMQ_CLIENT_GROUP_ID, MESSAGES_TOPIC, MARKERS_TOPIC,
+        KmqClient<ByteBuffer, ByteBuffer> kmqClient = new KmqClient<>(kmqConfig,
                 EmbeddedExample::processMessage, clock, clients,
                 ByteBufferDeserializer.class, ByteBufferDeserializer.class);
 
-        Closeable redelivery = RedeliveryTracker.setup(clients, REDELIVERY_APP_ID, MESSAGES_TOPIC, MARKERS_TOPIC, MESSAGE_TIMEOUT);
+        Closeable redelivery = RedeliveryTracker.setup(clients, kmqConfig);
         startInBackground(kmqClient::start);
-        startInBackground(() -> sendMessages(clients));
+        startInBackground(() -> sendMessages(clients, kmqConfig));
 
         System.in.read();
 
@@ -60,14 +59,14 @@ public class EmbeddedExample {
         LOG.info("Kafka stopped");
     }
 
-    private static void sendMessages(KafkaClients clients) {
+    private static void sendMessages(KafkaClients clients, KmqConfig kmqConfig) {
         KafkaProducer<ByteBuffer, ByteBuffer> msgProducer = clients.createProducer(ByteBufferSerializer.class, ByteBufferSerializer.class);
 
         LOG.info("Sending ...");
 
         for(int i = 0; i < TOTAL_MSGS; i++) {
             ByteBuffer data = ByteBuffer.allocate(4).putInt(i);
-            msgProducer.send(new ProducerRecord<>(MESSAGES_TOPIC, data));
+            msgProducer.send(new ProducerRecord<>(kmqConfig.getMsgTopic(), data));
             try { Thread.sleep(1000L); } catch (InterruptedException e) { throw new RuntimeException(e); }
         }
 

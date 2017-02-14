@@ -10,7 +10,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import static com.softwaremill.kmq.example.standalone.StandaloneConfig.KAFKA_CLIENTS;
-import static com.softwaremill.kmq.example.standalone.StandaloneConfig.MESSAGES_TOPIC;
+import static com.softwaremill.kmq.example.standalone.StandaloneConfig.KMQ_CONFIG;
 
 class StandaloneSender {
     private final static Logger LOG = LoggerFactory.getLogger(StandaloneSender.class);
@@ -26,8 +26,9 @@ class StandaloneSender {
 
         for(int i = 0; i < TOTAL_MSGS; i++) {
             ByteBuffer data = ByteBuffer.allocate(4).putInt(i);
-            msgProducer.send(new ProducerRecord<>(MESSAGES_TOPIC, data));
-            try { Thread.sleep(1000L); } catch (InterruptedException e) { throw new RuntimeException(e); }
+            msgProducer.send(new ProducerRecord<>(KMQ_CONFIG.getMsgTopic(), data));
+            try { Thread.sleep(100L); } catch (InterruptedException e) { throw new RuntimeException(e); }
+            LOG.info(String.format("Sent message %d", i));
         }
 
         msgProducer.close();

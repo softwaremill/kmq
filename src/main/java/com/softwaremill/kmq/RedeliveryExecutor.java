@@ -22,7 +22,7 @@ import java.util.function.Function;
 public class RedeliveryExecutor {
     private final static Logger LOG = LoggerFactory.getLogger(RedeliveryExecutor.class);
 
-    private final static long POLL_TIMEOUT = Duration.ofSeconds(10).toMillis();
+    private final static long POLL_TIMEOUT = Duration.ofSeconds(100).toMillis();
 
     private final String msgTopic;
     private final MarkersQueue markersQueue;
@@ -72,7 +72,8 @@ public class RedeliveryExecutor {
             throw new IllegalStateException("Cannot redeliver " + marker.key + " from topic " + msgTopic + ", due to data fetch timeout");
         } else {
             ConsumerRecord<byte[], byte[]> toSend = pollResults.get(0);
-            LOG.info("Redelivering " + marker.key.getOffset());
+            LOG.info(String.format("Redelivering message %s/%d at offset %d", msgTopic, marker.key.getPartition(),
+                    marker.key.getOffset()));
             return producer.send(new ProducerRecord<>(
                     toSend.topic(),
                     toSend.partition(),

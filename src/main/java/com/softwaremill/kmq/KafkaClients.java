@@ -51,7 +51,9 @@ public class KafkaClients {
         props.put("key.deserializer", keyDeserializer.getName());
         props.put("value.deserializer", valueDeserializer.getName());
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        if (groupId != null) {
+            props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        }
 
         return new KafkaConsumer<>(props);
     }

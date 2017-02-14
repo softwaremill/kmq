@@ -23,8 +23,7 @@ import java.util.function.Function;
 public class KmqClient<K, V> {
     private final static Logger LOG = LoggerFactory.getLogger(KmqClient.class);
 
-    private final String msgTopic;
-    private final String markerTopic;
+    private final KmqConfig config;
     private final Function<ConsumerRecord<K, V>, Boolean> processData;
     private final Clock clock;
 
@@ -33,16 +32,15 @@ public class KmqClient<K, V> {
 
     private static ExecutorService executorService = Executors.newCachedThreadPool();
 
-    public KmqClient(String groupId, String msgTopic, String markerTopic, Function<ConsumerRecord<K, V>, Boolean> processMsg,
+    public KmqClient(KmqConfig config, Function<ConsumerRecord<K, V>, Boolean> processMsg,
                      Clock clock, KafkaClients clients, Class<? extends Deserializer<K>> keyDeserializer,
                      Class<? extends Deserializer<V>> valueDeserializer) {
 
-        this.msgTopic = msgTopic;
-        this.markerTopic = markerTopic;
+        this.config = config;
         this.processData = processMsg;
         this.clock = clock;
 
-        this.msgConsumer = clients.createConsumer(groupId, keyDeserializer, valueDeserializer);
+        this.msgConsumer = clients.createConsumer(config.getMsgConsumerGroupId(), keyDeserializer, valueDeserializer);
         // Using the custom partitioner, each offset-partition will contain markers only from a single queue-partition.
         this.markerProducer = clients.createProducer(
                 MarkerKey.MarkerKeySerializer.class, MarkerValue.MarkerValueSerializer.class,
@@ -50,7 +48,7 @@ public class KmqClient<K, V> {
     }
 
     public void start() {
-        msgConsumer.subscribe(Collections.singletonList(msgTopic));
+        msgConsumer.subscribe(Collections.singletonList(config.getMsgTopic()));
 
         LOG.info("Starting KMQ Java client ...");
 
@@ -61,7 +59,7 @@ public class KmqClient<K, V> {
             for (ConsumerRecord<K, V> record : records) {
                 // 2. Write a "start" marker. Collecting the future responses.
                 markerSends.add(markerProducer.send(
-                        new ProducerRecord<>(markerTopic,
+                        new ProducerRecord<>(config.getMarkerTopic(),
                                 MarkerKey.fromRecord(record),
                                 new MarkerValue(true, clock.millis()))));
             }
@@ -87,7 +85,7 @@ public class KmqClient<K, V> {
             if (processData.apply(msg)) {
                 // 5. writing an "end" marker. No need to wait for confirmation that it has been sent. It would be
                 // nice, though, not to ignore that output completely.
-                markerProducer.send(new ProducerRecord<>(markerTopic,
+                markerProducer.send(new ProducerRecord<>(config.getMarkerTopic(),
                         markerKey,
                         new MarkerValue(false, clock.millis())));
             }
