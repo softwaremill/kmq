@@ -16,7 +16,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.softwaremill.kmq.example.standalone.StandaloneConfig.*;
-import static com.softwaremill.kmq.example.standalone.StandaloneSender.TOTAL_MSGS;
 
 class StandaloneProcessor {
     private final static Logger LOG = LoggerFactory.getLogger(StandaloneProcessor.class);
