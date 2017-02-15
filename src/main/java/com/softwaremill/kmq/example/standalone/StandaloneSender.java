@@ -1,5 +1,6 @@
 package com.softwaremill.kmq.example.standalone;
 
+import com.softwaremill.kmq.example.UncaughtExceptionHandling;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.ByteBufferSerializer;
@@ -18,6 +19,7 @@ class StandaloneSender {
     static final int TOTAL_MSGS = 100;
 
     public static void main(String[] args) throws InterruptedException, IOException {
+        UncaughtExceptionHandling.setup();
 
         KafkaProducer<ByteBuffer, ByteBuffer> msgProducer = KAFKA_CLIENTS
                 .createProducer(ByteBufferSerializer.class, ByteBufferSerializer.class);

@@ -31,6 +31,14 @@ public class MarkerValue {
                 .array();
     }
 
+    @Override
+    public String toString() {
+        return "MarkerValue{" +
+                "start=" + start +
+                ", processingTimestamp=" + processingTimestamp +
+                '}';
+    }
+
     public static class MarkerValueSerializer implements Serializer<MarkerValue> {
         @Override
         public void configure(Map<String, ?> configs, boolean isKey) {}

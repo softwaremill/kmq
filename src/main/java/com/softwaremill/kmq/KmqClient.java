@@ -50,7 +50,7 @@ public class KmqClient<K, V> {
     public void start() {
         msgConsumer.subscribe(Collections.singletonList(config.getMsgTopic()));
 
-        LOG.info("Starting KMQ Java client ...");
+        LOG.info("Starting KMQ Java client");
 
         List<Future<RecordMetadata>> markerSends = new ArrayList<>();
         while (true) {

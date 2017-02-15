@@ -4,6 +4,7 @@ import com.softwaremill.kmq.KafkaClients;
 import com.softwaremill.kmq.KmqClient;
 import com.softwaremill.kmq.KmqConfig;
 import com.softwaremill.kmq.RedeliveryTracker;
+import com.softwaremill.kmq.example.UncaughtExceptionHandling;
 import net.manub.embeddedkafka.EmbeddedKafka$;
 import net.manub.embeddedkafka.EmbeddedKafkaConfig;
 import org.apache.kafka.clients.consumer.*;
@@ -32,6 +33,8 @@ public class EmbeddedExample {
     private static final Clock clock = Clock.systemDefaultZone();
 
     public static void main(String[] args) throws InterruptedException, IOException {
+        UncaughtExceptionHandling.setup();
+        
         KmqConfig kmqConfig = new KmqConfig("queue", "markers", "kmq_client",
                 "kmq_redelivery", Duration.ofSeconds(10).toMillis(), "kmq_started_markers");
 

@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 import java.io.IOException;
 import java.time.Clock;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 
 public class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
@@ -22,7 +23,8 @@ public class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
     private ProcessorContext context;
     private KeyValueStore<MarkerKey, MarkerValue> startedMarkers;
     private MarkersQueue markersQueue;
-    private Closeable closeRedeliveryExecutor;
+    private Runnable closeRedeliveryExecutor;
+    private ConcurrentLinkedQueue<MarkerKey> toDelete;
 
     private final KmqConfig config;
     private final KafkaConsumer<byte[], byte[]> redeliveredMsgsConsumer;
@@ -46,10 +48,15 @@ public class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
         this.markersQueue = new MarkersQueue(k -> startedMarkers.get(k) == null, clock, config.getMsgTimeout());
         restoreMarkersQueue();
 
+        // keys from "startedMarkers" can only be removed when processing a message (not on another thread), hence when
+        // a message is re-delivered its key is added to this collection, and removed later when any message is
+        // processed (e.g. the marker key sent by processing the re-delivered message).
+        toDelete = new ConcurrentLinkedQueue<>();
+
         RedeliveryExecutor redeliveryExecutor = new RedeliveryExecutor(config.getMsgTopic(), markersQueue,
                 redeliveredMsgsConsumer, redeliveredMsgsProducer,
-                // when a message is redelivered, removing it from the store
-                k -> { startedMarkers.delete(k); return null; });
+                // when a message is redelivered, marking it to be removed from the store
+                k -> { toDelete.offer(k); return null; });
         closeRedeliveryExecutor = RedeliveryExecutor.schedule(redeliveryExecutor, 1, TimeUnit.SECONDS);
 
         LOG.info(String.format("Started new redelivery processor for message topic %s", config.getMsgTopic()));
@@ -57,6 +64,8 @@ public class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
 
     @Override
     public void process(MarkerKey key, MarkerValue value) {
+        deleteKeysToDelete();
+
         if (value.isStart()) {
             startedMarkers.put(key, value);
             markersQueue.offer(key, value);
@@ -73,10 +82,16 @@ public class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
     @Override
     public void close() {
         LOG.info("Closing redelivery processor");
-        startedMarkers.close();
 
         if (closeRedeliveryExecutor != null) {
-            try { closeRedeliveryExecutor.close(); } catch (IOException e) { throw new RuntimeException(e); }
+            closeRedeliveryExecutor.run();
+        }
+    }
+
+    private void deleteKeysToDelete() {
+        MarkerKey keyToDelete;
+        while ((keyToDelete = toDelete.poll()) != null) {
+            startedMarkers.delete(keyToDelete);
         }
     }
 

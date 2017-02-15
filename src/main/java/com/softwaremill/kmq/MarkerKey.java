@@ -32,6 +32,14 @@ public class MarkerKey {
                 .array();
     }
 
+    @Override
+    public String toString() {
+        return "MarkerKey{" +
+                "partition=" + partition +
+                ", offset=" + offset +
+                '}';
+    }
+
     public static class MarkerKeySerializer implements Serializer<MarkerKey> {
         @Override
         public void configure(Map<String, ?> configs, boolean isKey) {}

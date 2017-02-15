@@ -9,7 +9,6 @@ import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Closeable;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
@@ -23,6 +22,7 @@ public class RedeliveryExecutor {
     private final static Logger LOG = LoggerFactory.getLogger(RedeliveryExecutor.class);
 
     private final static long POLL_TIMEOUT = Duration.ofSeconds(100).toMillis();
+    private final static long SEND_TIMEOUT_SECONDS = 60;
 
     private final String msgTopic;
     private final MarkersQueue markersQueue;
@@ -51,7 +51,7 @@ public class RedeliveryExecutor {
                 .map(m -> new RedeliveredMarker(m, redeliver(m)))
                 .forEach(rm -> {
                     try {
-                        rm.sendResult.get();
+                        rm.sendResult.get(SEND_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
@@ -72,7 +72,7 @@ public class RedeliveryExecutor {
             throw new IllegalStateException("Cannot redeliver " + marker.key + " from topic " + msgTopic + ", due to data fetch timeout");
         } else {
             ConsumerRecord<byte[], byte[]> toSend = pollResults.get(0);
-            LOG.info(String.format("Redelivering message %s/%d at offset %d", msgTopic, marker.key.getPartition(),
+            LOG.info(String.format("Redelivering message from %s, partition %d, offset %d", msgTopic, marker.key.getPartition(),
                     marker.key.getOffset()));
             return producer.send(new ProducerRecord<>(
                     toSend.topic(),
@@ -108,12 +108,22 @@ public class RedeliveryExecutor {
         }
     }
 
-    public static Closeable schedule(RedeliveryExecutor executor, int every, TimeUnit timeUnit) {
+    public static Runnable schedule(RedeliveryExecutor executor, int every, TimeUnit timeUnit) {
         ScheduledExecutorService punctuateExecutor = Executors.newSingleThreadScheduledExecutor();
         punctuateExecutor.scheduleAtFixedRate(
-                executor::redeliverTimedoutMessages,
+                () -> {
+                    try { executor.redeliverTimedoutMessages(); }
+                    catch (Exception e) {
+                        Thread.getDefaultUncaughtExceptionHandler().uncaughtException(Thread.currentThread(), e);
+                    }
+                },
                 every, every, timeUnit
         );
-        return punctuateExecutor::shutdown;
+        return () -> {
+            punctuateExecutor.shutdown();
+            try {
+                punctuateExecutor.awaitTermination(1, TimeUnit.MINUTES);
+            } catch (InterruptedException e) { throw new RuntimeException(e); }
+        };
     }
 }

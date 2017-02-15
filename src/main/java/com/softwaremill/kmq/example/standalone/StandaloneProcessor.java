@@ -1,6 +1,7 @@
 package com.softwaremill.kmq.example.standalone;
 
 import com.softwaremill.kmq.KmqClient;
+import com.softwaremill.kmq.example.UncaughtExceptionHandling;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.serialization.ByteBufferDeserializer;
 import org.slf4j.Logger;
@@ -12,6 +13,7 @@ import java.time.Clock;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.softwaremill.kmq.example.standalone.StandaloneConfig.*;
 import static com.softwaremill.kmq.example.standalone.StandaloneSender.TOTAL_MSGS;
@@ -20,16 +22,18 @@ class StandaloneProcessor {
     private final static Logger LOG = LoggerFactory.getLogger(StandaloneProcessor.class);
 
     public static void main(String[] args) throws InterruptedException, IOException {
+        UncaughtExceptionHandling.setup();
+
         KmqClient<ByteBuffer, ByteBuffer> kmqClient = new KmqClient<>(KMQ_CONFIG,
                 StandaloneProcessor::processMessage, Clock.systemDefaultZone(), KAFKA_CLIENTS,
                 ByteBufferDeserializer.class, ByteBufferDeserializer.class);
 
-        LOG.info("Starting KMQ client");
         kmqClient.start();
     }
 
     private static Random random = new Random();
     private static Map<Integer, Integer> processedMessages = new ConcurrentHashMap<>();
+    private static AtomicInteger totalProcessed = new AtomicInteger(0);
     private static boolean processMessage(ConsumerRecord<ByteBuffer, ByteBuffer> rawMsg) {
         int msg = rawMsg.value().getInt();
         // 10% of the messages are dropped
@@ -45,10 +49,10 @@ class StandaloneProcessor {
             Integer previous = processedMessages.put(msg, msg);
             if (previous != null) {
                 LOG.warn(String.format("Message %d was already processed!", msg));
-            } else {
-                LOG.info(String.format("Done processing message: %d. Total processed: %d/%d.",
-                        msg, processedMessages.size(), TOTAL_MSGS));
             }
+
+            int total = totalProcessed.incrementAndGet();
+            LOG.info(String.format("Done processing message: %d. Total processed: %d.", msg, total));
 
             return true;
         } else {
