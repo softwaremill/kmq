@@ -69,14 +69,14 @@ public class KmqClient<K, V> {
                 try { f.get(); } catch (Exception e) { throw new RuntimeException(e); }
             });
 
-            // 3. Now that we now the start markers have been sent, we can start processing the messages
+            // 3. after all start markers are sent, commit offsets. This needs to be done as close to writing the
+            // start marker as possible, to minimize the number of double re-processed messages in case of failure.
+            msgConsumer.commitSync();
+
+            // 4. Now that we now the start markers have been sent, we can start processing the messages
             for (ConsumerRecord<K, V> record : records) {
                 executorService.execute(processDataRunnable(record, MarkerKey.fromRecord(record)));
             }
-
-            // 4. after all start markers are sent, commit offsets. This needs to be done as close to writing the
-            // start marker as possible, to minimize the number of double re-processed messages in case of failure.
-            msgConsumer.commitSync();
         }
     }
 
