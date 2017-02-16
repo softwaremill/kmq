@@ -18,7 +18,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.io.StdIn
 
-object StandaloneProcessor extends App with StrictLogging {
+object StandaloneReactiveClient extends App with StrictLogging {
   import StandaloneConfig._
 
   implicit val system = ActorSystem()
