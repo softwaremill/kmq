@@ -41,7 +41,7 @@ public class RedeliveryExecutor {
         this.onMessageRedelivered = onMessageRedelivered;
     }
 
-    public void redeliverTimedoutMessages() {
+    private void redeliverTimedoutMessages() {
         markersQueue.removeEndedMarkers();
         redeliver(markersQueue.markersToRedeliver());
     }
@@ -87,7 +87,7 @@ public class RedeliveryExecutor {
         private final MarkersQueue.Marker marker;
         private final Future<RecordMetadata> sendResult;
 
-        public RedeliveredMarker(MarkersQueue.Marker marker, Future<RecordMetadata> sendResult) {
+        RedeliveredMarker(MarkersQueue.Marker marker, Future<RecordMetadata> sendResult) {
             this.marker = marker;
             this.sendResult = sendResult;
         }
@@ -108,7 +108,7 @@ public class RedeliveryExecutor {
         }
     }
 
-    public static Runnable schedule(RedeliveryExecutor executor, int every, TimeUnit timeUnit) {
+    static Runnable schedule(RedeliveryExecutor executor, int every, TimeUnit timeUnit) {
         ScheduledExecutorService punctuateExecutor = Executors.newSingleThreadScheduledExecutor();
         punctuateExecutor.scheduleAtFixedRate(
                 () -> {

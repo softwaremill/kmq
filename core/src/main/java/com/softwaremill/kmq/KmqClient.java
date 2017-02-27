@@ -20,6 +20,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.Function;
 
+/**
+ * Kafka-based MQ client, processes messages from the message topic using the given function, sending appropriate
+ * start and end markers before and after a message is processed, to ensure redelivery in case of processing failure.
+ */
 public class KmqClient<K, V> {
     private final static Logger LOG = LoggerFactory.getLogger(KmqClient.class);
 

@@ -9,6 +9,10 @@ import org.apache.kafka.streams.state.Stores;
 
 import java.io.Closeable;
 
+/**
+ * Tracks which messages has been processed, and redelivers the ones which are not processed during the
+ * configured timeout.
+ */
 public class RedeliveryTracker {
     public static Closeable setup(KafkaClients clients, KmqConfig config) {
 
@@ -16,7 +20,6 @@ public class RedeliveryTracker {
                 .withKeys(new MarkerKey.MarkerKeySerde())
                 .withValues(new MarkerValue.MarkerValueSerde())
                 .persistent()
-                //.enableLogging() TODO
                 .build();
 
         TopologyBuilder builder = new TopologyBuilder();
