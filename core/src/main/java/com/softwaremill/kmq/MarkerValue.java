@@ -16,15 +16,15 @@ public class MarkerValue {
         this.processingTimestamp = processingTimestamp;
     }
 
-    public boolean isStart() {
+    boolean isStart() {
         return start;
     }
 
-    public long getProcessingTimestamp() {
+    long getProcessingTimestamp() {
         return processingTimestamp;
     }
 
-    public byte[] serialize() {
+    byte[] serialize() {
         return ByteBuffer.allocate(1 + 8)
                 .put((byte) (start ? 1 : 0))
                 .putLong(processingTimestamp)

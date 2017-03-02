@@ -51,7 +51,7 @@ public class EmbeddedExample {
                 EmbeddedExample::processMessage, clock, clients,
                 ByteBufferDeserializer.class, ByteBufferDeserializer.class);
 
-        Closeable redelivery = RedeliveryTracker.setup(clients, kmqConfig);
+        Closeable redelivery = RedeliveryTracker.start(clients, kmqConfig);
         startInBackground(kmqClient::start);
         startInBackground(() -> sendMessages(clients, kmqConfig));
 

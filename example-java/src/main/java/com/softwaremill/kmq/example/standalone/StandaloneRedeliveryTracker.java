@@ -16,7 +16,7 @@ class StandaloneRedeliveryTracker {
     public static void main(String[] args) throws InterruptedException, IOException {
         UncaughtExceptionHandling.setup();
 
-        Closeable redelivery = RedeliveryTracker.setup(KAFKA_CLIENTS, KMQ_CONFIG);
+        Closeable redelivery = RedeliveryTracker.start(KAFKA_CLIENTS, KMQ_CONFIG);
         LOG.info("Redelivery tracker started");
 
         System.in.read();

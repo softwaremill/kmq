@@ -10,24 +10,24 @@ import java.util.function.Function;
 /**
  * Thread-safe if `isEnded` is thread-safe.
  */
-public class MarkersQueue {
+class MarkersQueue {
     private final Function<MarkerKey, Boolean> isEnded;
     private final BlockingQueue<Marker> markersQueue;
     private final Clock clock;
     private final long messageTimeout;
 
-    public MarkersQueue(Function<MarkerKey, Boolean> isEnded, Clock clock, long messageTimeout) {
+    MarkersQueue(Function<MarkerKey, Boolean> isEnded, Clock clock, long messageTimeout) {
         this.isEnded = isEnded;
         this.clock = clock;
         this.messageTimeout = messageTimeout;
         markersQueue = new PriorityBlockingQueue<>(); // TODO: bounds
     }
 
-    public void offer(MarkerKey k, MarkerValue v) {
+    void offer(MarkerKey k, MarkerValue v) {
         markersQueue.offer(new Marker(k, v));
     }
 
-    public void removeEndedMarkers() {
+    void removeEndedMarkers() {
         while (isHeadEnded()) {
             markersQueue.poll();
         }
@@ -38,7 +38,7 @@ public class MarkersQueue {
         return head != null && isEnded.apply(head.key);
     }
 
-    public List<Marker> markersToRedeliver() {
+    List<Marker> markersToRedeliver() {
         List<Marker> toRedeliver = new ArrayList<>();
         while (shouldRedeliverQueueHead()) {
             Marker queueHead = markersQueue.poll();
@@ -59,11 +59,11 @@ public class MarkersQueue {
         } else return false;
     }
 
-    public static class Marker implements Comparable<Marker> {
-        public final MarkerKey key;
-        public final MarkerValue value;
+    static class Marker implements Comparable<Marker> {
+        final MarkerKey key;
+        final MarkerValue value;
 
-        public Marker(MarkerKey key, MarkerValue value) {
+        Marker(MarkerKey key, MarkerValue value) {
             this.key = key;
             this.value = value;
         }

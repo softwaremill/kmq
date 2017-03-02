@@ -97,7 +97,7 @@ object StandaloneSender extends App with StrictLogging {
 object StandaloneTracker extends App with StrictLogging {
   import StandaloneConfig._
 
-  val doClose = RedeliveryTracker.setup(new KafkaClients(bootstrapServer), kmqConfig)
+  val doClose = RedeliveryTracker.start(new KafkaClients(bootstrapServer), kmqConfig)
 
   logger.info("Press any key to exit ...")
   StdIn.readLine()

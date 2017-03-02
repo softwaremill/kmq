@@ -17,15 +17,15 @@ public class MarkerKey {
         this.offset = offset;
     }
 
-    public int getPartition() {
+    int getPartition() {
         return partition;
     }
 
-    public long getOffset() {
+    long getOffset() {
         return offset;
     }
 
-    public byte[] serialize() {
+    byte[] serialize() {
         return ByteBuffer.allocate(4+8)
                 .putInt(partition)
                 .putLong(offset)

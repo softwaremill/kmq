@@ -13,7 +13,7 @@ import java.time.Clock;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 
-public class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
+class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
     private final static Logger LOG = LoggerFactory.getLogger(RedeliveryProcessor.class);
 
     private final Clock clock = Clock.systemDefaultZone();
@@ -28,7 +28,7 @@ public class RedeliveryProcessor implements Processor<MarkerKey, MarkerValue> {
     private final KafkaConsumer<byte[], byte[]> redeliveredMsgsConsumer;
     private final KafkaProducer<byte[], byte[]> redeliveredMsgsProducer;
 
-    public RedeliveryProcessor(KmqConfig config,
+    RedeliveryProcessor(KmqConfig config,
                                KafkaConsumer<byte[], byte[]> redeliveredMsgsConsumer,
                                KafkaProducer<byte[], byte[]> redeliveredMsgsProducer) {
         this.config = config;

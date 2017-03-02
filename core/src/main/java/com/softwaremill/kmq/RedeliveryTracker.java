@@ -14,7 +14,7 @@ import java.io.Closeable;
  * configured timeout.
  */
 public class RedeliveryTracker {
-    public static Closeable setup(KafkaClients clients, KmqConfig config) {
+    public static Closeable start(KafkaClients clients, KmqConfig config) {
 
         StateStoreSupplier startedMarkers = Stores.create(config.getStartedMarkersStoreName())
                 .withKeys(new MarkerKey.MarkerKeySerde())

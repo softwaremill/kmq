@@ -18,7 +18,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-public class RedeliveryExecutor {
+class RedeliveryExecutor {
     private final static Logger LOG = LoggerFactory.getLogger(RedeliveryExecutor.class);
 
     private final static long POLL_TIMEOUT = Duration.ofSeconds(100).toMillis();
@@ -32,7 +32,7 @@ public class RedeliveryExecutor {
 
     private int assignedPartition = -1;
 
-    public RedeliveryExecutor(String msgTopic, MarkersQueue markersQueue, KafkaConsumer<byte[], byte[]> consumer,
+    RedeliveryExecutor(String msgTopic, MarkersQueue markersQueue, KafkaConsumer<byte[], byte[]> consumer,
                               KafkaProducer<byte[], byte[]> producer, Function<MarkerKey, Void> onMessageRedelivered) {
         this.msgTopic = msgTopic;
         this.markersQueue = markersQueue;
