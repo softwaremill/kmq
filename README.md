@@ -3,8 +3,8 @@
 Using `kmq` you can acknowledge processing of individual messages in Kafka, and have unacknowledged messages 
 re-delivered after a timeout. 
 
-This is in contrast to the usual Kafka offset-committing mechanism, using which you can acknowledge all messages
-up to a given offset only. 
+This is in contrast to the usual Kafka messageOffset-committing mechanism, using which you can acknowledge all messages
+up to a given messageOffset only. 
 
 If you are familiar with [Amazon SQS](https://aws.amazon.com/sqs/), `kmq` implements a similar message processing
 model.

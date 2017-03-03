@@ -7,28 +7,29 @@ import org.apache.kafka.common.serialization.Serializer;
 
 import java.nio.ByteBuffer;
 import java.util.Map;
+import java.util.Objects;
 
 public class MarkerKey {
     private final int partition;
-    private final long offset;
+    private final long messageOffset;
 
-    public MarkerKey(int partition, long offset) {
+    public MarkerKey(int partition, long messageOffset) {
         this.partition = partition;
-        this.offset = offset;
+        this.messageOffset = messageOffset;
     }
 
-    int getPartition() {
+    public int getPartition() {
         return partition;
     }
 
-    long getOffset() {
-        return offset;
+    public long getMessageOffset() {
+        return messageOffset;
     }
 
-    byte[] serialize() {
+    public byte[] serialize() {
         return ByteBuffer.allocate(4+8)
                 .putInt(partition)
-                .putLong(offset)
+                .putLong(messageOffset)
                 .array();
     }
 
@@ -36,8 +37,22 @@ public class MarkerKey {
     public String toString() {
         return "MarkerKey{" +
                 "partition=" + partition +
-                ", offset=" + offset +
+                ", messageOffset=" + messageOffset +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        MarkerKey markerKey = (MarkerKey) o;
+        return partition == markerKey.partition &&
+                messageOffset == markerKey.messageOffset;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(partition, messageOffset);
     }
 
     public static class MarkerKeySerializer implements Serializer<MarkerKey> {

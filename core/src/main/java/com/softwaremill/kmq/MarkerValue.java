@@ -6,6 +6,7 @@ import org.apache.kafka.common.serialization.Serializer;
 
 import java.nio.ByteBuffer;
 import java.util.Map;
+import java.util.Objects;
 
 public class MarkerValue {
     private final boolean start;
@@ -16,19 +17,23 @@ public class MarkerValue {
         this.processingTimestamp = processingTimestamp;
     }
 
-    boolean isStart() {
+    public boolean isStart() {
         return start;
     }
 
-    long getProcessingTimestamp() {
+    public long getProcessingTimestamp() {
         return processingTimestamp;
     }
 
-    byte[] serialize() {
+    public byte[] serialize() {
         return ByteBuffer.allocate(1 + 8)
                 .put((byte) (start ? 1 : 0))
                 .putLong(processingTimestamp)
                 .array();
+    }
+
+    public MarkerValue asEndMarker() {
+        return new MarkerValue(false, processingTimestamp);
     }
 
     @Override
@@ -37,6 +42,20 @@ public class MarkerValue {
                 "start=" + start +
                 ", processingTimestamp=" + processingTimestamp +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        MarkerValue that = (MarkerValue) o;
+        return start == that.start &&
+                processingTimestamp == that.processingTimestamp;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(start, processingTimestamp);
     }
 
     public static class MarkerValueSerializer implements Serializer<MarkerValue> {

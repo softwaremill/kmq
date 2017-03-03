@@ -70,7 +70,7 @@ public class EmbeddedExample {
         for(int i = 0; i < TOTAL_MSGS; i++) {
             ByteBuffer data = ByteBuffer.allocate(4).putInt(i);
             msgProducer.send(new ProducerRecord<>(kmqConfig.getMsgTopic(), data));
-            try { Thread.sleep(1000L); } catch (InterruptedException e) { throw new RuntimeException(e); }
+            try { Thread.sleep(100L); } catch (InterruptedException e) { throw new RuntimeException(e); }
         }
 
         msgProducer.close();
