@@ -6,12 +6,17 @@ import java.time.Clock
 
 import scala.collection.mutable
 
-class MarkersQueue(clock: Clock, messageTimeout: Long) {
+class MarkersQueue(clock: Clock, messageTimeout: Long, disableRedeliveryBefore: Offset) {
   private val markersInProgress = mutable.Map[MarkerKey, MarkerValue]()
   private val markersByTimestamp = new mutable.PriorityQueue[Marker]() // TODO: bounds change to by-redelivery
   private val markersOffsets = new mutable.PriorityQueue[MarkerKeyWithOffset]()
+  private var redeliveryEnabled = false
 
   def handleMarker(markerOffset: Offset, k: MarkerKey , v: MarkerValue) {
+    if (markerOffset >= disableRedeliveryBefore) {
+      redeliveryEnabled = true
+    }
+
     if (v.isStart) {
       markersOffsets.enqueue(MarkerKeyWithOffset(markerOffset, k))
 
@@ -26,17 +31,20 @@ class MarkersQueue(clock: Clock, messageTimeout: Long) {
     removeEndedMarkers(markersByTimestamp)(_.key)
 
     var toRedeliver = List.empty[Marker]
-    while (shouldRedeliverMarkersQueueHead()) {
-      val queueHead = markersByTimestamp.dequeue()
-      // the first marker, if any, is not ended for sure (b/c of the cleanup that's done at the beginning),
-      // but subsequent markers don't have to be.
-      if (markersInProgress.contains(queueHead.key)) {
-        toRedeliver ::= queueHead
-      }
 
-      // not removing from markersInProgress - until we are sure the message is redelivered (the redeliverer
-      // sends an end marker when this is done) - the marker needs to stay for minimum-offset calculations to be
-      // correct
+    if (redeliveryEnabled) {
+      while (shouldRedeliverMarkersQueueHead()) {
+        val queueHead = markersByTimestamp.dequeue()
+        // the first marker, if any, is not ended for sure (b/c of the cleanup that's done at the beginning),
+        // but subsequent markers don't have to be.
+        if (markersInProgress.contains(queueHead.key)) {
+          toRedeliver ::= queueHead
+        }
+
+        // not removing from markersInProgress - until we are sure the message is redelivered (the redeliverer
+        // sends an end marker when this is done) - the marker needs to stay for minimum-offset calculations to be
+        // correct
+      }
     }
 
     toRedeliver

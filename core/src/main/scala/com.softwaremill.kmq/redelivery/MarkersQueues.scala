@@ -21,8 +21,10 @@ class MarkersQueues(clock: Clock, messageTimeout: Long) {
     markersQueues.get(p).map(_.markersToRedeliver()).getOrElse(Nil)
   }
 
-  def addPartition(p: Partition, currentLastMarkerOffset: Long): Unit = {
-    markersQueues += p -> new MarkersQueue(clock, messageTimeout)
+  def addPartition(p: Partition, currentLastMarkerOffset: Offset): Unit = {
+    // Enabling redelivery only after the queue state if fully recovered, that is after it has observed all offsets
+    // currently in the markers topic. That way we avoid redelivery of already processed messages.
+    markersQueues += p -> new MarkersQueue(clock, messageTimeout, currentLastMarkerOffset)
   }
 
   def removePartition(p: Partition): Unit = {
