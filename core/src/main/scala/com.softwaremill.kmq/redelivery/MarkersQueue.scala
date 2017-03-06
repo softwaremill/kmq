@@ -1,13 +1,12 @@
 package com.softwaremill.kmq.redelivery
 
-import com.softwaremill.kmq.MarkerKey
-import com.softwaremill.kmq.MarkerValue
+import com.softwaremill.kmq.{EndMarker, MarkerKey, MarkerValue, StartMarker}
 import java.time.Clock
 
 import scala.collection.mutable
 
 class MarkersQueue(clock: Clock, disableRedeliveryBefore: Offset) {
-  private val markersInProgress = mutable.Map[MarkerKey, MarkerValue]()
+  private val markersInProgress = mutable.Map[MarkerKey, StartMarker]()
   private val markersByTimestamp = new mutable.PriorityQueue[Marker]()
   private val markersOffsets = new mutable.PriorityQueue[MarkerKeyWithOffset]()
   private var redeliveryEnabled = false
@@ -17,13 +16,15 @@ class MarkersQueue(clock: Clock, disableRedeliveryBefore: Offset) {
       redeliveryEnabled = true
     }
 
-    if (v.isStart) {
-      markersOffsets.enqueue(MarkerKeyWithOffset(markerOffset, k))
+    v match {
+      case s: StartMarker =>
+        markersOffsets.enqueue(MarkerKeyWithOffset(markerOffset, k))
 
-      markersByTimestamp.enqueue(Marker(k, v))
-      markersInProgress.put(k, v)
-    } else {
-      markersInProgress.remove(k)
+        markersByTimestamp.enqueue(Marker(k, s))
+        markersInProgress.put(k, s)
+
+      case e: EndMarker =>
+        markersInProgress.remove(k)
     }
   }
 

@@ -43,7 +43,7 @@ object StandaloneReactiveClient extends App with StrictLogging {
   Consumer.committableSource(consumerSettings, Subscriptions.topics(kmqConfig.getMsgTopic)) // 1. get messages from topic
     .map { msg =>
       ProducerMessage.Message(
-        new ProducerRecord(kmqConfig.getMarkerTopic, MarkerKey.fromRecord(msg.record), new MarkerValue(true, clock.millis + kmqConfig.getMsgTimeout)), msg)
+        new ProducerRecord[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, MarkerKey.fromRecord(msg.record), new StartMarker(clock.millis + kmqConfig.getMsgTimeout)), msg)
     }
     .via(Producer.flow(markerProducerSettings, markerProducer)) // 2. write the "start" marker
     .map(_.message.passThrough)
@@ -61,7 +61,7 @@ object StandaloneReactiveClient extends App with StrictLogging {
       }
     }
     .map { msg =>
-      new ProducerRecord(kmqConfig.getMarkerTopic, MarkerKey.fromRecord(msg), new MarkerValue(false, clock.millis + kmqConfig.getMsgTimeout))
+      new ProducerRecord[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, MarkerKey.fromRecord(msg), EndMarker.INSTANCE)
     }
     .to(Producer.plainSink(markerProducerSettings, markerProducer)) // 5. write "end" markers
     .run()

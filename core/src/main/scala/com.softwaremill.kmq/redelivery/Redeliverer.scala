@@ -4,7 +4,7 @@ import java.time.Duration
 import java.util.Collections
 import java.util.concurrent.{Future, TimeUnit}
 
-import com.softwaremill.kmq.{KafkaClients, KmqConfig}
+import com.softwaremill.kmq.{EndMarker, KafkaClients, KmqConfig}
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.TopicPartition
@@ -54,7 +54,7 @@ class Redeliverer(partition: Partition, producer: KafkaProducer[Array[Byte], Arr
 
   private def writeEndMarker(marker: Marker): Future[RecordMetadata] = {
     producer.send(new ProducerRecord(config.getMarkerTopic, partition,
-      marker.key.serialize, marker.value.asEndMarker.serialize))
+      marker.key.serialize, EndMarker.INSTANCE.serialize()))
   }
 
   private case class RedeliveredMarker(marker: Marker, sendResult: Future[RecordMetadata])
