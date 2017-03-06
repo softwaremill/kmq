@@ -20,8 +20,9 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
   private var markerConsumer: KafkaConsumer[MarkerKey, MarkerValue] = _
   private var producer: KafkaProducer[Array[Byte], Array[Byte]] = _
 
-  private var commitMarkerOffsetActor: ActorRef = _
   private var redeliverActors: Map[Partition, ActorRef] = Map()
+
+  private var redeliverActorNameCounter = 1
 
   override def preStart(): Unit = {
     markerConsumer = clients.createConsumer(config.getRedeliveryConsumerGroupId,
@@ -51,12 +52,14 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
           markersQueues.addPartition(tp.partition(), endOffsets.get(tp) - 1)
           redeliverActors += tp.partition() -> context.actorOf(
             Props(new RedeliverActor(tp.partition(), new Redeliverer(tp.partition(), producer, config, clients), self)),
-            s"redeliver-actor-${tp.partition()}")
+            s"redeliver-actor-${tp.partition()}-$redeliverActorNameCounter")
+
+          redeliverActorNameCounter += 1
         }
       }
     })
 
-    commitMarkerOffsetActor = context.actorOf(
+    context.actorOf(
       Props(new CommitMarkerOffsetsActor(config.getMarkerTopic, clients, self)),
       "commit-marker-offsets")
 
@@ -86,7 +89,8 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
     case GetMarkersToRedeliver(partition) =>
       val m = markersQueues.markersToRedeliver(partition)
       if (m.nonEmpty) {
-        sender() ! MarkersToRedeliver(m)
+        // not using sender() - the actor might have changed due to rebalancing
+        redeliverActors.get(partition).foreach(_ ! MarkersToRedeliver(m))
       }
 
     case ConsumeMarkers =>
