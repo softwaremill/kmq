@@ -1,9 +1,6 @@
 package com.softwaremill.kmq.example.embedded;
 
-import com.softwaremill.kmq.KafkaClients;
-import com.softwaremill.kmq.KmqClient;
-import com.softwaremill.kmq.KmqConfig;
-import com.softwaremill.kmq.RedeliveryTracker;
+import com.softwaremill.kmq.*;
 import com.softwaremill.kmq.example.UncaughtExceptionHandling;
 import net.manub.embeddedkafka.EmbeddedKafka$;
 import net.manub.embeddedkafka.EmbeddedKafkaConfig;
@@ -23,6 +20,8 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class EmbeddedExample {
     private final static Logger LOG = LoggerFactory.getLogger(EmbeddedExample.class);
@@ -47,12 +46,8 @@ public class EmbeddedExample {
         EmbeddedKafka$.MODULE$.createCustomTopic(kmqConfig.getMsgTopic(), Map$.MODULE$.empty(), PARTITIONS, 1, kafkaConfig);
         LOG.info("Kafka started");
 
-        KmqClient<ByteBuffer, ByteBuffer> kmqClient = new KmqClient<>(kmqConfig,
-                EmbeddedExample::processMessage, clock, clients,
-                ByteBufferDeserializer.class, ByteBufferDeserializer.class);
-
         Closeable redelivery = RedeliveryTracker.start(clients, kmqConfig);
-        startInBackground(kmqClient::start);
+        startInBackground(() -> processMessages(clients, kmqConfig));
         startInBackground(() -> sendMessages(clients, kmqConfig));
 
         System.in.read();
@@ -76,6 +71,22 @@ public class EmbeddedExample {
         msgProducer.close();
 
         LOG.info("Sent");
+    }
+
+    private static void processMessages(KafkaClients clients, KmqConfig kmqConfig) {
+        KmqClient<ByteBuffer, ByteBuffer> kmqClient = new KmqClient<>(kmqConfig, clock, clients,
+                ByteBufferDeserializer.class, ByteBufferDeserializer.class, 100);
+        final ExecutorService msgProcessingExecutor = Executors.newCachedThreadPool();
+
+        while (true) {
+            for (ConsumerRecord<ByteBuffer, ByteBuffer> record : kmqClient.nextBatch()) {
+                msgProcessingExecutor.execute(() -> {
+                    if (processMessage(record)) {
+                        kmqClient.processed(record);
+                    }
+                });
+            }
+        }
     }
 
     private static Random random = new Random();

@@ -15,84 +15,89 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.function.Function;
 
 /**
- * Kafka-based MQ client, processes messages from the message topic using the given function, sending appropriate
- * start and end markers before and after a message is processed, to ensure redelivery in case of processing failure.
+ * Kafka-based MQ client. A call to `nextBatch()` will:
+ * 1. poll the `msgTopic` for at most `msgPollTimeout`
+ * 2. send the start markers to the `markerTopic`, wait until they are written
+ * 3. commit read offsets of the messages from `msgTopic`
+ *
+ * The next step of the message flow - 4. processing the messages - should be done by the client.
+ *
+ * After each message is processed, the `processed()` method should be called, which will:
+ * 5. send an end marker to the `markerTopic`
+ *
+ * Note that `processed()` can be called at any time for any message and out-of-order. If processing fails, it shuoldn't
+ * be called at all.
  */
 public class KmqClient<K, V> {
     private final static Logger LOG = LoggerFactory.getLogger(KmqClient.class);
 
     private final KmqConfig config;
-    private final Function<ConsumerRecord<K, V>, Boolean> processData;
     private final Clock clock;
+    private final long msgPollTimeout;
 
     private final KafkaConsumer<K, V> msgConsumer;
     private final KafkaProducer<MarkerKey, MarkerValue> markerProducer;
 
-    private static ExecutorService executorService = Executors.newCachedThreadPool();
-
-    public KmqClient(KmqConfig config, Function<ConsumerRecord<K, V>, Boolean> processMsg,
-                     Clock clock, KafkaClients clients, Class<? extends Deserializer<K>> keyDeserializer,
-                     Class<? extends Deserializer<V>> valueDeserializer) {
+    public KmqClient(KmqConfig config, Clock clock, KafkaClients clients,
+                     Class<? extends Deserializer<K>> keyDeserializer,
+                     Class<? extends Deserializer<V>> valueDeserializer,
+                     long msgPollTimeout) {
 
         this.config = config;
-        this.processData = processMsg;
         this.clock = clock;
+        this.msgPollTimeout = msgPollTimeout;
 
         this.msgConsumer = clients.createConsumer(config.getMsgConsumerGroupId(), keyDeserializer, valueDeserializer);
         // Using the custom partitioner, each offset-partition will contain markers only from a single queue-partition.
         this.markerProducer = clients.createProducer(
                 MarkerKey.MarkerKeySerializer.class, MarkerValue.MarkerValueSerializer.class,
                 Collections.singletonMap(ProducerConfig.PARTITIONER_CLASS_CONFIG, ParititionFromMarkerKey.class));
-    }
 
-    public void start() {
+        LOG.info(String.format("Subscribing to topic: %s, using group id: %s", config.getMsgTopic(), config.getMsgConsumerGroupId()));
         msgConsumer.subscribe(Collections.singletonList(config.getMsgTopic()));
-
-        LOG.info("Starting KMQ Java client");
-
-        List<Future<RecordMetadata>> markerSends = new ArrayList<>();
-        while (true) {
-            // 1. Get messages from topic, in batches
-            ConsumerRecords<K, V> records = msgConsumer.poll(100);
-            for (ConsumerRecord<K, V> record : records) {
-                // 2. Write a "start" marker. Collecting the future responses.
-                markerSends.add(markerProducer.send(
-                        new ProducerRecord<>(config.getMarkerTopic(),
-                                MarkerKey.fromRecord(record),
-                                new StartMarker(clock.millis()+config.getMsgTimeout()))));
-            }
-
-            // Waiting for a confirmation that each start marker has been sent
-            markerSends.forEach(f -> {
-                try { f.get(); } catch (Exception e) { throw new RuntimeException(e); }
-            });
-
-            // 3. after all start markers are sent, commit offsets. This needs to be done as close to writing the
-            // start marker as possible, to minimize the number of double re-processed messages in case of failure.
-            msgConsumer.commitSync();
-
-            // 4. Now that we now the start markers have been sent, we can start processing the messages
-            for (ConsumerRecord<K, V> record : records) {
-                executorService.execute(processDataRunnable(record, MarkerKey.fromRecord(record)));
-            }
-        }
     }
 
-    private Runnable processDataRunnable(ConsumerRecord<K, V> msg, MarkerKey markerKey) {
-        return () -> {
-            if (processData.apply(msg)) {
-                // 5. writing an "end" marker. No need to wait for confirmation that it has been sent. It would be
-                // nice, though, not to ignore that output completely.
-                markerProducer.send(new ProducerRecord<>(config.getMarkerTopic(),
-                        markerKey,
-                        EndMarker.INSTANCE));
-            }
-        };
+    public ConsumerRecords<K, V> nextBatch() {
+        List<Future<RecordMetadata>> markerSends = new ArrayList<>();
+
+        // 1. Get messages from topic, in batches
+        ConsumerRecords<K, V> records = msgConsumer.poll(msgPollTimeout);
+        for (ConsumerRecord<K, V> record : records) {
+            // 2. Write a "start" marker. Collecting the future responses.
+            markerSends.add(markerProducer.send(
+                    new ProducerRecord<>(config.getMarkerTopic(),
+                            MarkerKey.fromRecord(record),
+                            new StartMarker(clock.millis()+config.getMsgTimeout()))));
+        }
+
+        // Waiting for a confirmation that each start marker has been sent
+        markerSends.forEach(f -> {
+            try { f.get(); } catch (Exception e) { throw new RuntimeException(e); }
+        });
+
+        // 3. after all start markers are sent, commit offsets. This needs to be done as close to writing the
+        // start marker as possible, to minimize the number of double re-processed messages in case of failure.
+        msgConsumer.commitSync();
+
+        return records;
+    }
+
+    // client-side: 4. process the messages
+
+    /**
+     * @param record The message for which should be acknowledged as processed; an end marker will be send to the
+     *               markers topic.
+     * @return Result of the marker send. Usually can be ignored, we don't need a guarantee the marker has been sent,
+     * worst case the message will be reprocessed.
+     */
+    public Future<RecordMetadata> processed(ConsumerRecord<K, V> record) {
+        // 5. writing an "end" marker. No need to wait for confirmation that it has been sent. It would be
+        // nice, though, not to ignore that output completely.
+        return markerProducer.send(new ProducerRecord<>(config.getMarkerTopic(),
+                MarkerKey.fromRecord(record),
+                EndMarker.INSTANCE));
     }
 }

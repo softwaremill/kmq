@@ -13,6 +13,8 @@ import java.time.Clock;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.softwaremill.kmq.example.standalone.StandaloneConfig.*;
@@ -24,10 +26,20 @@ class StandaloneProcessor {
         UncaughtExceptionHandling.setup();
 
         KmqClient<ByteBuffer, ByteBuffer> kmqClient = new KmqClient<>(KMQ_CONFIG,
-                StandaloneProcessor::processMessage, Clock.systemDefaultZone(), KAFKA_CLIENTS,
-                ByteBufferDeserializer.class, ByteBufferDeserializer.class);
+                Clock.systemDefaultZone(), KAFKA_CLIENTS,
+                ByteBufferDeserializer.class, ByteBufferDeserializer.class, 100);
 
-        kmqClient.start();
+        ExecutorService msgProcessingExecutor = Executors.newCachedThreadPool();
+
+        while (true) {
+            for (ConsumerRecord<ByteBuffer, ByteBuffer> record : kmqClient.nextBatch()) {
+                msgProcessingExecutor.execute(() -> {
+                    if (processMessage(record)) {
+                        kmqClient.processed(record);
+                    }
+                });
+            }
+        }
     }
 
     private static Random random = new Random();
