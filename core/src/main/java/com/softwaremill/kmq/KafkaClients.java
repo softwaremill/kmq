@@ -4,9 +4,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.common.serialization.Deserializer;
-import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serializer;
-import org.apache.kafka.streams.StreamsConfig;
 
 import java.util.Collections;
 import java.util.Map;
@@ -56,16 +54,5 @@ public class KafkaClients {
         }
 
         return new KafkaConsumer<>(props);
-    }
-
-    public Properties streamsProps(String appId, Class<? extends Serde<?>> keySerde, Class<? extends Serde<?>> valueSerde) {
-        Properties props = new Properties();
-        props.put(StreamsConfig.APPLICATION_ID_CONFIG, appId);
-        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServer);
-        props.put(StreamsConfig.KEY_SERDE_CLASS_CONFIG, keySerde.getName());
-        props.put(StreamsConfig.VALUE_SERDE_CLASS_CONFIG, valueSerde.getName());
-        props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, "8");
-        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-        return props;
     }
 }

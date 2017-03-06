@@ -1,12 +1,6 @@
 package com.softwaremill.kmq;
 
 import com.softwaremill.kmq.redelivery.RedeliveryActors;
-import org.apache.kafka.common.serialization.ByteArrayDeserializer;
-import org.apache.kafka.common.serialization.ByteArraySerializer;
-import org.apache.kafka.streams.KafkaStreams;
-import org.apache.kafka.streams.processor.StateStoreSupplier;
-import org.apache.kafka.streams.processor.TopologyBuilder;
-import org.apache.kafka.streams.state.Stores;
 
 import java.io.Closeable;
 
