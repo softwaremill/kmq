@@ -17,6 +17,8 @@ The acknowledgment mechanism uses a `marker` topic, which should have the same n
 data topic (called the `queue` topic). The marker topic is used to track which messages have been processed, by 
 writing start/end  markers for every message.
 
+![message flow diagram](https://softwaremill.com/images/uploads/2017/02/kmq.93f842cf.png)
+
 # Using kmq
 
 An application using `kmq` should consist of the following components:
