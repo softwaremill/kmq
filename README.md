@@ -3,8 +3,8 @@
 Using `kmq` you can acknowledge processing of individual messages in Kafka, and have unacknowledged messages 
 re-delivered after a timeout. 
 
-This is in contrast to the usual Kafka messageOffset-committing mechanism, using which you can acknowledge all messages
-up to a given messageOffset only. 
+This is in contrast to the usual Kafka offset-committing mechanism, using which you can acknowledge all messages
+up to a given offset only. 
 
 If you are familiar with [Amazon SQS](https://aws.amazon.com/sqs/), `kmq` implements a similar message processing
 model.
@@ -14,15 +14,15 @@ model.
 For a more in-depth overview see the blog: [Using Kafka as a message queue](https://softwaremill.com/using-kafka-as-a-message-queue/)
 
 The acknowledgment mechanism uses a `marker` topic, which should have the same number of partitions as the "main"
-data topic (called the `queue` topic), and is used to track which messages have been processed, with start/end 
-markers that should be written to the topic for every message.
+data topic (called the `queue` topic). The marker topic is used to track which messages have been processed, by 
+writing start/end  markers for every message.
 
 # Using kmq
 
 An application using `kmq` should consist of the following components:
 
 * a number of `RedeliveryTracker`s. This components consumes the `marker` topic and redelivers messages if appropriate. 
-Multiple copies should be started in a cluster for fail-over. Uses Kafka Streams and automatic partition assignment.
+Multiple copies should be started in a cluster for fail-over. Uses automatic partition assignment.
 * components which send data to the `queue` topic to be processed
 * queue clients, either custom or using the `KmqClient`
 
