@@ -2,7 +2,6 @@ package com.softwaremill.kmq;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.serialization.Deserializer;
-import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serializer;
 
 import java.nio.ByteBuffer;
@@ -80,24 +79,6 @@ public class MarkerKey {
 
         @Override
         public void close() {}
-    }
-
-    public static class MarkerKeySerde implements Serde<MarkerKey> {
-        @Override
-        public void configure(Map<String, ?> configs, boolean isKey) {}
-
-        @Override
-        public void close() {}
-
-        @Override
-        public Serializer<MarkerKey> serializer() {
-            return new MarkerKeySerializer();
-        }
-
-        @Override
-        public Deserializer<MarkerKey> deserializer() {
-            return new MarkerKeyDeserializer();
-        }
     }
 
     public static MarkerKey fromRecord(ConsumerRecord r) {

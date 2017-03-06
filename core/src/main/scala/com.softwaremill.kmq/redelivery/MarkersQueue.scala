@@ -6,13 +6,13 @@ import java.time.Clock
 
 import scala.collection.mutable
 
-class MarkersQueue(clock: Clock, messageTimeout: Long, disableRedeliveryBefore: Offset) {
+class MarkersQueue(clock: Clock, disableRedeliveryBefore: Offset) {
   private val markersInProgress = mutable.Map[MarkerKey, MarkerValue]()
-  private val markersByTimestamp = new mutable.PriorityQueue[Marker]() // TODO: bounds change to by-redelivery
+  private val markersByTimestamp = new mutable.PriorityQueue[Marker]()
   private val markersOffsets = new mutable.PriorityQueue[MarkerKeyWithOffset]()
   private var redeliveryEnabled = false
 
-  def handleMarker(markerOffset: Offset, k: MarkerKey , v: MarkerValue) {
+  def handleMarker(markerOffset: Offset, k: MarkerKey, v: MarkerValue) {
     if (markerOffset >= disableRedeliveryBefore) {
       redeliveryEnabled = true
     }
@@ -68,7 +68,7 @@ class MarkersQueue(clock: Clock, messageTimeout: Long, disableRedeliveryBefore: 
   private def shouldRedeliverMarkersQueueHead(): Boolean = {
     markersByTimestamp.headOption match {
       case None => false
-      case Some(m) => (clock.millis() - m.value.getProcessingTimestamp) >= messageTimeout
+      case Some(m) => clock.millis() >= m.value.getRedeliverTimestamp
     }
   }
 

@@ -15,7 +15,7 @@ import scala.collection.JavaConverters._
 
 class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Actor with StrictLogging {
 
-  private val markersQueues = new MarkersQueues(Clock.systemDefaultZone, config.getMsgTimeout)
+  private val markersQueues = new MarkersQueues(Clock.systemDefaultZone)
 
   private var markerConsumer: KafkaConsumer[MarkerKey, MarkerValue] = _
   private var producer: KafkaProducer[Array[Byte], Array[Byte]] = _
@@ -24,7 +24,7 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
   private var redeliverActors: Map[Partition, ActorRef] = Map()
 
   override def preStart(): Unit = {
-    markerConsumer = clients.createConsumer(config.getRedeliveryAppId,
+    markerConsumer = clients.createConsumer(config.getRedeliveryConsumerGroupId,
       classOf[MarkerKey.MarkerKeyDeserializer],
       classOf[MarkerValue.MarkerValueDeserializer])
 

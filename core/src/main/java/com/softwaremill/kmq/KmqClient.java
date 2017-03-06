@@ -65,7 +65,7 @@ public class KmqClient<K, V> {
                 markerSends.add(markerProducer.send(
                         new ProducerRecord<>(config.getMarkerTopic(),
                                 MarkerKey.fromRecord(record),
-                                new MarkerValue(true, clock.millis()))));
+                                new MarkerValue(true, clock.millis()+config.getMsgTimeout()))));
             }
 
             // Waiting for a confirmation that each start marker has been sent
@@ -91,7 +91,7 @@ public class KmqClient<K, V> {
                 // nice, though, not to ignore that output completely.
                 markerProducer.send(new ProducerRecord<>(config.getMarkerTopic(),
                         markerKey,
-                        new MarkerValue(false, clock.millis())));
+                        new MarkerValue(false, clock.millis()+config.getMsgTimeout())));
             }
         };
     }

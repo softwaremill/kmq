@@ -7,25 +7,22 @@ public class KmqConfig {
     private final String msgTopic;
     private final String markerTopic;
     private final String msgConsumerGroupId;
-    private final String redeliveryAppId;
+    private final String redeliveryConsumerGroupId;
     private final long msgTimeout;
-    private final String startedMarkersStoreName;
 
     /**
      * @param msgTopic Name of the Kafka topic containing the messages.
      * @param markerTopic Name of the Kafka topic containing the markers.
      * @param msgConsumerGroupId Consumer group id for reading messages from `msgTopic`.
-     * @param redeliveryAppId Kafka-streams app id for the redelivery component.
+     * @param redeliveryConsumerGroupId Consumer grou pid for reading messages from `markerTopic`.
      * @param msgTimeout Timeout, after which messages, if not processed, are redelivered.
-     * @param startedMarkersStoreName Name of the Kafka-streams store for non-processed message markers.
      */
-    public KmqConfig(String msgTopic, String markerTopic, String msgConsumerGroupId, String redeliveryAppId, long msgTimeout, String startedMarkersStoreName) {
+    public KmqConfig(String msgTopic, String markerTopic, String msgConsumerGroupId, String redeliveryConsumerGroupId, long msgTimeout) {
         this.msgTopic = msgTopic;
         this.markerTopic = markerTopic;
         this.msgConsumerGroupId = msgConsumerGroupId;
-        this.redeliveryAppId = redeliveryAppId;
+        this.redeliveryConsumerGroupId = redeliveryConsumerGroupId;
         this.msgTimeout = msgTimeout;
-        this.startedMarkersStoreName = startedMarkersStoreName;
     }
 
     public String getMsgTopic() {
@@ -40,15 +37,11 @@ public class KmqConfig {
         return msgConsumerGroupId;
     }
 
-    public String getRedeliveryAppId() {
-        return redeliveryAppId;
+    public String getRedeliveryConsumerGroupId() {
+        return redeliveryConsumerGroupId;
     }
 
     public long getMsgTimeout() {
         return msgTimeout;
-    }
-
-    public String getStartedMarkersStoreName() {
-        return startedMarkersStoreName;
     }
 }

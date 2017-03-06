@@ -36,7 +36,7 @@ public class EmbeddedExample {
         UncaughtExceptionHandling.setup();
         
         KmqConfig kmqConfig = new KmqConfig("queue", "markers", "kmq_client",
-                "kmq_redelivery", Duration.ofSeconds(10).toMillis(), "kmq_started_markers");
+                "kmq_redelivery", Duration.ofSeconds(10).toMillis());
 
         EmbeddedKafkaConfig kafkaConfig = EmbeddedKafkaConfig.defaultConfig();
         KafkaClients clients = new KafkaClients("localhost:" + kafkaConfig.kafkaPort());

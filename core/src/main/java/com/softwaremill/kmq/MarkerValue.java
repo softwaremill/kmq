@@ -1,7 +1,6 @@
 package com.softwaremill.kmq;
 
 import org.apache.kafka.common.serialization.Deserializer;
-import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serializer;
 
 import java.nio.ByteBuffer;
@@ -10,37 +9,37 @@ import java.util.Objects;
 
 public class MarkerValue {
     private final boolean start;
-    private final long processingTimestamp;
+    private final long redeliverTimestamp;
 
-    public MarkerValue(boolean start, long processingTimestamp) {
+    public MarkerValue(boolean start, long redeliverTimestamp) {
         this.start = start;
-        this.processingTimestamp = processingTimestamp;
+        this.redeliverTimestamp = redeliverTimestamp;
     }
 
     public boolean isStart() {
         return start;
     }
 
-    public long getProcessingTimestamp() {
-        return processingTimestamp;
+    public long getRedeliverTimestamp() {
+        return redeliverTimestamp;
     }
 
     public byte[] serialize() {
         return ByteBuffer.allocate(1 + 8)
                 .put((byte) (start ? 1 : 0))
-                .putLong(processingTimestamp)
+                .putLong(redeliverTimestamp)
                 .array();
     }
 
     public MarkerValue asEndMarker() {
-        return new MarkerValue(false, processingTimestamp);
+        return new MarkerValue(false, redeliverTimestamp);
     }
 
     @Override
     public String toString() {
         return "MarkerValue{" +
                 "start=" + start +
-                ", processingTimestamp=" + processingTimestamp +
+                ", redeliverTimestamp=" + redeliverTimestamp +
                 '}';
     }
 
@@ -50,12 +49,12 @@ public class MarkerValue {
         if (o == null || getClass() != o.getClass()) return false;
         MarkerValue that = (MarkerValue) o;
         return start == that.start &&
-                processingTimestamp == that.processingTimestamp;
+                redeliverTimestamp == that.redeliverTimestamp;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(start, processingTimestamp);
+        return Objects.hash(start, redeliverTimestamp);
     }
 
     public static class MarkerValueSerializer implements Serializer<MarkerValue> {
@@ -92,22 +91,4 @@ public class MarkerValue {
         @Override
         public void close() {}
     }
-
-    public static class MarkerValueSerde implements Serde<MarkerValue> {
-        @Override
-        public void configure(Map<String, ?> configs, boolean isKey) {}
-
-        @Override
-        public void close() {}
-
-        @Override
-        public Serializer<MarkerValue> serializer() {
-            return new MarkerValueSerializer();
-        }
-
-        @Override
-        public Deserializer<MarkerValue> deserializer() {
-            return new MarkerValueDeserializer();
-        }
-    };
 }

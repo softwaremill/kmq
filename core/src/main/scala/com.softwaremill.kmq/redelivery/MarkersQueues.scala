@@ -4,7 +4,7 @@ import java.time.Clock
 
 import com.softwaremill.kmq.{MarkerKey, MarkerValue}
 
-class MarkersQueues(clock: Clock, messageTimeout: Long) {
+class MarkersQueues(clock: Clock) {
   private var markersQueues = Map[Partition, MarkersQueue]()
 
   def handleMarker(markerOffset: Offset, k: MarkerKey, v: MarkerValue): Unit = {
@@ -24,7 +24,7 @@ class MarkersQueues(clock: Clock, messageTimeout: Long) {
   def addPartition(p: Partition, currentLastMarkerOffset: Offset): Unit = {
     // Enabling redelivery only after the queue state if fully recovered, that is after it has observed all offsets
     // currently in the markers topic. That way we avoid redelivery of already processed messages.
-    markersQueues += p -> new MarkersQueue(clock, messageTimeout, currentLastMarkerOffset)
+    markersQueues += p -> new MarkersQueue(clock, currentLastMarkerOffset)
   }
 
   def removePartition(p: Partition): Unit = {
