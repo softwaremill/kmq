@@ -3,7 +3,7 @@ package com.softwaremill.kmq.redelivery
 import java.time.Clock
 import java.util.Collections
 
-import akka.actor.{Actor, ActorRef, PoisonPill, Props}
+import akka.actor.{Actor, ActorRef, Cancellable, PoisonPill, Props}
 import com.softwaremill.kmq.{KafkaClients, KmqConfig, MarkerKey, MarkerValue}
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.kafka.clients.consumer.{ConsumerRebalanceListener, KafkaConsumer}
@@ -12,6 +12,7 @@ import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.ByteArraySerializer
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration._
 
 class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Actor with StrictLogging {
 
@@ -23,6 +24,10 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
   private var redeliverActors: Map[Partition, ActorRef] = Map()
 
   private var redeliverActorNameCounter = 1
+
+  private var commitMarkerOffsetsActor: ActorRef = _
+
+  private var scheduledConsumerMarkers: Cancellable = _
 
   override def preStart(): Unit = {
     markerConsumer = clients.createConsumer(config.getRedeliveryConsumerGroupId,
@@ -59,11 +64,11 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
       }
     })
 
-    context.actorOf(
+    commitMarkerOffsetsActor = context.actorOf(
       Props(new CommitMarkerOffsetsActor(config.getMarkerTopic, clients, self)),
       "commit-marker-offsets")
 
-    self ! ConsumeMarkers
+    scheduledConsumerMarkers = scheduleConsumeMarkers()
 
     logger.info("Started consume markers actor")
   }
@@ -79,17 +84,19 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
       case e: Exception => logger.error("Cannot close producer", e)
     }
 
+    scheduledConsumerMarkers.cancel()
+
     logger.info("Stopped consume markers actor")
   }
 
   override def receive: Receive = {
     case GetOffsetsToCommit =>
-      sender() ! OffsetsToCommit(markersQueues.smallestMarkerOffsetsPerPartition())
+      commitMarkerOffsetsActor ! OffsetsToCommit(markersQueues.smallestMarkerOffsetsPerPartition())
 
     case GetMarkersToRedeliver(partition) =>
       val m = markersQueues.markersToRedeliver(partition)
       if (m.nonEmpty) {
-        // not using sender() - the actor might have changed due to rebalancing
+        // not using sender() - the actor might have changed due to rebalancing or restart
         redeliverActors.get(partition).foreach(_ ! MarkersToRedeliver(m))
       }
 
@@ -98,8 +105,11 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
       for (record <- markers.asScala) {
         markersQueues.handleMarker(record.offset(), record.key(), record.value())
       }
+  }
 
-      self ! ConsumeMarkers
+  private def scheduleConsumeMarkers(): Cancellable = {
+    import context.dispatcher
+    context.system.scheduler.schedule(1.second, 1.second, self, ConsumeMarkers)
   }
 }
 
