@@ -17,6 +17,8 @@ class CommitMarkerOffsetsActor(markerTopic: String, clients: KafkaClients, marke
 
   override def preStart(): Unit = {
     scheduleGetOffsetsQuery()
+
+    logger.info("Started commit marker offsets actor")
   }
 
   override def postStop(): Unit = {
