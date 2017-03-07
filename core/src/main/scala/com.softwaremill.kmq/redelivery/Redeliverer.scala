@@ -58,4 +58,6 @@ class Redeliverer(partition: Partition, producer: KafkaProducer[Array[Byte], Arr
   }
 
   private case class RedeliveredMarker(marker: Marker, sendResult: Future[RecordMetadata])
+
+  def close(): Unit = consumer.close()
 }

@@ -16,6 +16,11 @@ class RedeliverActor(p: Partition, redeliverer: Redeliverer, markersActor: Actor
 
   override def postStop(): Unit = {
     scheduledGetMarkersQuery.cancel()
+
+    try redeliverer.close()
+    catch {
+      case e: Exception => logger.error(s"Cannot close redeliver for partition $p", e)
+    }
     
     logger.info(s"${self.path} Stopped redeliver actor for partition $p")
   }
