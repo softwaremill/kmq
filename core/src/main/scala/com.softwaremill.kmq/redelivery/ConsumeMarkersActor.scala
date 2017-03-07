@@ -3,7 +3,7 @@ package com.softwaremill.kmq.redelivery
 import java.time.Clock
 import java.util.Collections
 
-import akka.actor.{Actor, ActorRef, Cancellable, PoisonPill, Props}
+import akka.actor.{Actor, ActorRef, Cancellable, PoisonPill, Props, Terminated}
 import com.softwaremill.kmq.{KafkaClients, KmqConfig, MarkerKey, MarkerValue}
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.kafka.clients.consumer.{ConsumerRebalanceListener, KafkaConsumer}
@@ -97,7 +97,7 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
       val m = markersQueues.markersToRedeliver(partition)
       if (m.nonEmpty) {
         // not using sender() - the actor might have changed due to rebalancing or restart
-        redeliverActors.get(partition).foreach(_ ! MarkersToRedeliver(m))
+        redeliverActors.get(partition).foreach(_ ! MarkersToRedeliver(m, 1))
       }
 
     case ConsumeMarkers =>
@@ -117,6 +117,6 @@ case object GetOffsetsToCommit
 case class OffsetsToCommit(offsets: Map[Partition, Offset])
 
 case class GetMarkersToRedeliver(partition: Partition)
-case class MarkersToRedeliver(markers: List[Marker])
+case class MarkersToRedeliver(markers: List[Marker], retryCounter: Int)
 
 case object ConsumeMarkers
