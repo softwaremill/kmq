@@ -1,6 +1,6 @@
 package com.softwaremill.kmq.redelivery
 
-import akka.actor.{Actor, ActorRef, Cancellable}
+import akka.actor.{Actor, ActorRef}
 import com.softwaremill.kmq.KafkaClients
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
@@ -13,18 +13,15 @@ import scala.concurrent.duration._
 class CommitMarkerOffsetsActor(markerTopic: String, clients: KafkaClients, markersActor: ActorRef)
   extends Actor with StrictLogging {
 
+  import context.dispatcher
+
   private val consumer = clients.createConsumer(null, classOf[ByteArrayDeserializer], classOf[ByteArrayDeserializer])
-  private var scheduledGetOffsetsQuery: Cancellable = _
 
   override def preStart(): Unit = {
-    scheduledGetOffsetsQuery = scheduleGetOffsetsQuery()
-
     logger.info("Started commit marker offsets actor")
   }
 
   override def postStop(): Unit = {
-    scheduledGetOffsetsQuery.cancel()
-
     try consumer.close()
     catch {
       case e: Exception => logger.error("Cannot close commit offsets consumer", e)
@@ -35,16 +32,16 @@ class CommitMarkerOffsetsActor(markerTopic: String, clients: KafkaClients, marke
 
   override def receive: Receive = {
     case OffsetsToCommit(m) =>
-      consumer.commitSync(m.map { case (partition, offset) =>
-        (new TopicPartition(markerTopic, partition), new OffsetAndMetadata(offset))
-      }.asJava)
-
-      logger.debug(s"Committed marker offsets: $m")
+      try commitOffsets(m)
+      finally context.system.scheduler.scheduleOnce(1.second, markersActor, GetOffsetsToCommit)
   }
 
-  private def scheduleGetOffsetsQuery(): Cancellable = {
-    import context.dispatcher
-    context.system.scheduler.schedule(1.second, 1.second, markersActor, GetOffsetsToCommit)
+  private def commitOffsets(m: Map[Partition, Offset]): Unit = {
+    consumer.commitSync(m.map { case (partition, offset) =>
+      (new TopicPartition(markerTopic, partition), new OffsetAndMetadata(offset))
+    }.asJava)
+
+    logger.debug(s"Committed marker offsets: $m")
   }
 }
 

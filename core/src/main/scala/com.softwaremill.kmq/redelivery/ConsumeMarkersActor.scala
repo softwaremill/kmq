@@ -3,7 +3,7 @@ package com.softwaremill.kmq.redelivery
 import java.time.Clock
 import java.util.Collections
 
-import akka.actor.{Actor, ActorRef, Cancellable, PoisonPill, Props, Terminated}
+import akka.actor.{Actor, ActorRef, Cancellable, PoisonPill, Props}
 import com.softwaremill.kmq.{KafkaClients, KmqConfig, MarkerKey, MarkerValue}
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.kafka.clients.consumer.{ConsumerRebalanceListener, KafkaConsumer}
@@ -64,13 +64,19 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
       }
     })
 
-    commitMarkerOffsetsActor = context.actorOf(
-      Props(new CommitMarkerOffsetsActor(config.getMarkerTopic, clients, self)),
-      "commit-marker-offsets")
+    setupOffsetCommitting()
 
     scheduledConsumerMarkers = scheduleConsumeMarkers()
 
     logger.info("Started consume markers actor")
+  }
+
+  private def setupOffsetCommitting(): Unit = {
+    commitMarkerOffsetsActor = context.actorOf(
+      Props(new CommitMarkerOffsetsActor(config.getMarkerTopic, clients, self)),
+      "commit-marker-offsets")
+
+    self ! GetOffsetsToCommit
   }
 
   override def postStop(): Unit = {
