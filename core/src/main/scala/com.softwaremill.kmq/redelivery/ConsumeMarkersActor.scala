@@ -12,12 +12,9 @@ import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.ByteArraySerializer
 
 import scala.collection.JavaConverters._
-import scala.concurrent.duration._
 
 class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Actor with StrictLogging {
-
-  import context.dispatcher
-
+  
   private val markersQueues = new MarkersQueues(Clock.systemDefaultZone)
 
   private var markerConsumer: KafkaConsumer[MarkerKey, MarkerValue] = _
@@ -26,8 +23,6 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
   private var redeliverActors: Map[Partition, ActorRef] = Map()
 
   private var redeliverActorNameCounter = 1
-
-  private var scheduledConsumerMarkers: Cancellable = _
 
   override def preStart(): Unit = {
     /* First, sending a start message, which will cause the correct `Receive` block to be used. This is used to discard
@@ -75,7 +70,7 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
 
     setupOffsetCommitting()
 
-    scheduledConsumerMarkers = scheduleConsumeMarkers()
+    self ! ConsumeMarkers
 
     logger.info("Consume markers actor setup complete, waiting for the start message to be processed ...")
   }
@@ -99,8 +94,6 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
       case e: Exception => logger.error("Cannot close producer", e)
     }
 
-    scheduledConsumerMarkers.cancel()
-
     logger.info("Stopped consume markers actor")
   }
 
@@ -123,14 +116,12 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
       sender() ! MarkersToRedeliver(m, 1)
 
     case ConsumeMarkers =>
-      val markers = markerConsumer.poll(1000L)
-      for (record <- markers.asScala) {
-        markersQueues.handleMarker(record.offset(), record.key(), record.value())
-      }
-  }
-
-  private def scheduleConsumeMarkers(): Cancellable = {
-    context.system.scheduler.schedule(1.second, 1.second, self, ConsumeMarkers)
+      try {
+        val markers = markerConsumer.poll(1000L)
+        for (record <- markers.asScala) {
+          markersQueues.handleMarker(record.offset(), record.key(), record.value())
+        }
+      } finally self ! ConsumeMarkers
   }
 }
 
