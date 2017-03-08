@@ -77,7 +77,7 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
 
     scheduledConsumerMarkers = scheduleConsumeMarkers()
 
-    logger.info("Started consume markers actor")
+    logger.info("Consume markers actor setup complete, waiting for the start message to be processed ...")
   }
 
   private def setupOffsetCommitting(): Unit = {
@@ -105,7 +105,9 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
   }
 
   override def receive: Receive = {
-    case StartConsumerMarkers => context.become(started)
+    case StartConsumerMarkers =>
+      logger.info("Started consume markers actor")
+      context.become(started)
     case m => logger.info(s"Dropping message $m as the $StartConsumerMarkers message has not yet been received")
   }
 
