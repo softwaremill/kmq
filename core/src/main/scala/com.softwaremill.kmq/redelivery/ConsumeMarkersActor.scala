@@ -3,7 +3,7 @@ package com.softwaremill.kmq.redelivery
 import java.time.Clock
 import java.util.Collections
 
-import akka.actor.{Actor, ActorRef, Cancellable, PoisonPill, Props}
+import akka.actor.{Actor, ActorRef, Cancellable, Props}
 import com.softwaremill.kmq.{KafkaClients, KmqConfig, MarkerKey, MarkerValue}
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.kafka.clients.consumer.{ConsumerRebalanceListener, KafkaConsumer}
@@ -16,6 +16,8 @@ import scala.concurrent.duration._
 
 class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Actor with StrictLogging {
 
+  import context.dispatcher
+
   private val markersQueues = new MarkersQueues(Clock.systemDefaultZone)
 
   private var markerConsumer: KafkaConsumer[MarkerKey, MarkerValue] = _
@@ -25,11 +27,15 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
 
   private var redeliverActorNameCounter = 1
 
-  private var commitMarkerOffsetsActor: ActorRef = _
-
   private var scheduledConsumerMarkers: Cancellable = _
 
   override def preStart(): Unit = {
+    /* First, sending a start message, which will cause the correct `Receive` block to be used. This is used to discard
+     any old messages in case the actor was restarted in case of an exception. If the messages wouldn't be discarded, as
+     we are starting e.g. offset committing (among other things) later on, the old requests to get offsets could get
+     mixed up with new ones, and cause offset committing to be done too frequently. */
+    self ! StartConsumerMarkers
+
     markerConsumer = clients.createConsumer(config.getRedeliveryConsumerGroupId,
       classOf[MarkerKey.MarkerKeyDeserializer],
       classOf[MarkerValue.MarkerValueDeserializer])
@@ -43,7 +49,7 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
         partitions.asScala.foreach { tp =>
           markersQueues.removePartition(tp.partition())
           redeliverActors.get(tp.partition()).foreach { redeliverActor =>
-            redeliverActor ! PoisonPill
+            context.stop(redeliverActor)
             redeliverActors -= tp.partition()
           }
         }
@@ -55,9 +61,12 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
         val endOffsets = markerConsumer.endOffsets(partitions)
         partitions.asScala.foreach { tp =>
           markersQueues.addPartition(tp.partition(), endOffsets.get(tp) - 1)
-          redeliverActors += tp.partition() -> context.actorOf(
+
+          val redeliverActor = context.actorOf(
             Props(new RedeliverActor(tp.partition(), new Redeliverer(tp.partition(), producer, config, clients), self)),
             s"redeliver-actor-${tp.partition()}-$redeliverActorNameCounter")
+          redeliverActor ! GetMarkersToRedeliver(tp.partition())
+          redeliverActors += tp.partition() -> redeliverActor
 
           redeliverActorNameCounter += 1
         }
@@ -72,11 +81,11 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
   }
 
   private def setupOffsetCommitting(): Unit = {
-    commitMarkerOffsetsActor = context.actorOf(
+    val commitMarkerOffsetsActor = context.actorOf(
       Props(new CommitMarkerOffsetsActor(config.getMarkerTopic, clients, self)),
       "commit-marker-offsets")
 
-    self ! GetOffsetsToCommit
+    commitMarkerOffsetsActor ! GetOffsetsToCommit
   }
 
   override def postStop(): Unit = {
@@ -96,15 +105,20 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
   }
 
   override def receive: Receive = {
+    case StartConsumerMarkers => context.become(started)
+    case m => logger.info(s"Dropping message $m as the $StartConsumerMarkers message has not yet been received")
+  }
+
+  private def started: Receive = {
     case GetOffsetsToCommit =>
-      commitMarkerOffsetsActor ! OffsetsToCommit(markersQueues.smallestMarkerOffsetsPerPartition())
+      sender() ! OffsetsToCommit(markersQueues.smallestMarkerOffsetsPerPartition())
 
     case GetMarkersToRedeliver(partition) =>
       val m = markersQueues.markersToRedeliver(partition)
-      if (m.nonEmpty) {
-        // not using sender() - the actor might have changed due to rebalancing or restart
-        redeliverActors.get(partition).foreach(_ ! MarkersToRedeliver(m, 1))
-      }
+      /* Sending back to sender, instead of looking up the actor in `redeliverActors`, as this might be a request
+      coming from an actor whose partition was already removed - and possibly replaced by a new one (for the same
+      partition), which does its own scheduling. */
+      sender() ! MarkersToRedeliver(m, 1)
 
     case ConsumeMarkers =>
       val markers = markerConsumer.poll(1000L)
@@ -114,7 +128,6 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
   }
 
   private def scheduleConsumeMarkers(): Cancellable = {
-    import context.dispatcher
     context.system.scheduler.schedule(1.second, 1.second, self, ConsumeMarkers)
   }
 }
@@ -126,3 +139,5 @@ case class GetMarkersToRedeliver(partition: Partition)
 case class MarkersToRedeliver(markers: List[Marker], retryCounter: Int)
 
 case object ConsumeMarkers
+
+case object StartConsumerMarkers

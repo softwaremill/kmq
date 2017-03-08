@@ -32,8 +32,17 @@ class CommitMarkerOffsetsActor(markerTopic: String, clients: KafkaClients, marke
 
   override def receive: Receive = {
     case OffsetsToCommit(m) =>
+      /* Committing offsets, and after a second scheduling next commit query. Sending the query first to self, and only
+      later forwarding to the main actor. That way, if the actors are being restarted while the schedule is in progress,
+      the message will be delivered to a terminated actor and hence dropped (as it should be - another actor will be
+      created to replaced this one). If the message was sent straight to `markersActor`, it would be possible that the
+      schedule would complete after the main actor restarted and processed the start message, causing duplicate
+      commits. */
       try commitOffsets(m)
-      finally context.system.scheduler.scheduleOnce(1.second, markersActor, GetOffsetsToCommit)
+      finally context.system.scheduler.scheduleOnce(1.second, self, GetOffsetsToCommit)
+
+    case GetOffsetsToCommit =>
+      markersActor ! GetOffsetsToCommit
   }
 
   private def commitOffsets(m: Map[Partition, Offset]): Unit = {

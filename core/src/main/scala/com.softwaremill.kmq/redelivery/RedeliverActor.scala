@@ -1,6 +1,6 @@
 package com.softwaremill.kmq.redelivery
 
-import akka.actor.{Actor, ActorRef, Cancellable}
+import akka.actor.{Actor, ActorRef}
 import com.typesafe.scalalogging.StrictLogging
 
 import scala.concurrent.duration._
@@ -8,17 +8,13 @@ import scala.concurrent.duration._
 class RedeliverActor(p: Partition, redeliverer: Redeliverer, markersActor: ActorRef) extends Actor with StrictLogging {
   private val MaxRetries = 16
 
-  private var scheduledGetMarkersQuery: Cancellable = _
+  import context.dispatcher
 
   override def preStart(): Unit = {
-    scheduledGetMarkersQuery = scheduleGetMarkersQuery()
-
     logger.info(s"${self.path} Started redeliver actor for partition $p")
   }
 
   override def postStop(): Unit = {
-    scheduledGetMarkersQuery.cancel()
-
     try redeliverer.close()
     catch {
       case e: Exception => logger.error(s"Cannot close redeliver for partition $p", e)
@@ -47,11 +43,10 @@ class RedeliverActor(p: Partition, redeliverer: Redeliverer, markersActor: Actor
   }
 
   override def receive: Receive = {
-    case MarkersToRedeliver(m, _) => redeliverer.redeliver(m)
-  }
+    case MarkersToRedeliver(m, _) =>
+      try redeliverer.redeliver(m)
+      finally context.system.scheduler.scheduleOnce(1.second, self, GetMarkersToRedeliver(p))
 
-  private def scheduleGetMarkersQuery(): Cancellable = {
-    import context.dispatcher
-    context.system.scheduler.schedule(1.second, 1.second, markersActor, GetMarkersToRedeliver(p))
+    case gm: GetMarkersToRedeliver => markersActor ! gm
   }
 }
