@@ -3,7 +3,7 @@ package com.softwaremill.kmq.redelivery
 import java.time.Clock
 import java.util.Collections
 
-import akka.actor.{Actor, ActorRef, Cancellable, Props}
+import akka.actor.{Actor, ActorRef, Props}
 import com.softwaremill.kmq.{KafkaClients, KmqConfig, MarkerKey, MarkerValue}
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.kafka.clients.consumer.{ConsumerRebalanceListener, KafkaConsumer}
