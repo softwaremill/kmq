@@ -44,7 +44,6 @@ public class KafkaClients {
                                                      Class<? extends Deserializer<V>> valueDeserializer) {
         Properties props = new Properties();
         props.put("bootstrap.servers", bootstrapServer);
-        props.put("group.id", "test");
         props.put("enable.auto.commit", "false");
         props.put("key.deserializer", keyDeserializer.getName());
         props.put("value.deserializer", valueDeserializer.getName());
