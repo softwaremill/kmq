@@ -23,7 +23,7 @@ class MarkersQueue(clock: Clock, disableRedeliveryBefore: Offset) {
         markersByTimestamp.enqueue(Marker(k, s))
         markersInProgress.put(k, s)
 
-      case e: EndMarker =>
+      case _: EndMarker =>
         markersInProgress.remove(k)
     }
   }

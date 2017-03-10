@@ -11,10 +11,10 @@ import java.util.Map;
 import java.util.Properties;
 
 public class KafkaClients {
-    private final String bootstrapServer;
+    private final String bootstrapServers;
 
-    public KafkaClients(String bootstrapServer) {
-        this.bootstrapServer = bootstrapServer;
+    public KafkaClients(String bootstrapServers) {
+        this.bootstrapServers = bootstrapServers;
     }
 
     public <K, V> KafkaProducer<K, V> createProducer(Class<? extends Serializer<K>> keySerializer, Class<? extends Serializer<V>> valueSerializer) {
@@ -24,7 +24,7 @@ public class KafkaClients {
     public <K, V> KafkaProducer<K, V> createProducer(Class<? extends Serializer<K>> keySerializer, Class<? extends Serializer<V>> valueSerializer,
                                                             Map<String, Object> extraConfig) {
         Properties props = new Properties();
-        props.put("bootstrap.servers", bootstrapServer);
+        props.put("bootstrap.servers", bootstrapServers);
         props.put("acks", "all");
         props.put("retries", 0);
         props.put("batch.size", 16384);
@@ -43,7 +43,7 @@ public class KafkaClients {
                                                      Class<? extends Deserializer<K>> keyDeserializer,
                                                      Class<? extends Deserializer<V>> valueDeserializer) {
         Properties props = new Properties();
-        props.put("bootstrap.servers", bootstrapServer);
+        props.put("bootstrap.servers", bootstrapServers);
         props.put("enable.auto.commit", "false");
         props.put("key.deserializer", keyDeserializer.getName());
         props.put("value.deserializer", valueDeserializer.getName());
