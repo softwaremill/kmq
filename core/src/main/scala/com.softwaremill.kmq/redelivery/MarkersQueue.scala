@@ -1,11 +1,10 @@
 package com.softwaremill.kmq.redelivery
 
 import com.softwaremill.kmq.{EndMarker, MarkerKey, MarkerValue, StartMarker}
-import java.time.Clock
 
 import scala.collection.mutable
 
-class MarkersQueue(clock: Clock, disableRedeliveryBefore: Offset) {
+class MarkersQueue(disableRedeliveryBefore: Offset) {
   private val markersInProgress = mutable.Map[MarkerKey, StartMarker]()
   private val markersByTimestamp = new mutable.PriorityQueue[Marker]()
   private val markersOffsets = new mutable.PriorityQueue[MarkerKeyWithOffset]()
@@ -28,13 +27,13 @@ class MarkersQueue(clock: Clock, disableRedeliveryBefore: Offset) {
     }
   }
 
-  def markersToRedeliver(): List[Marker] = {
+  def markersToRedeliver(now: Timestamp): List[Marker] = {
     removeEndedMarkers(markersByTimestamp)(_.key)
 
     var toRedeliver = List.empty[Marker]
 
     if (redeliveryEnabled) {
-      while (shouldRedeliverMarkersQueueHead()) {
+      while (shouldRedeliverMarkersQueueHead(now)) {
         val queueHead = markersByTimestamp.dequeue()
         // the first marker, if any, is not ended for sure (b/c of the cleanup that's done at the beginning),
         // but subsequent markers don't have to be.
@@ -66,10 +65,10 @@ class MarkersQueue(clock: Clock, disableRedeliveryBefore: Offset) {
     queue.headOption.exists(e => !markersInProgress.contains(getKey.apply(e)))
   }
 
-  private def shouldRedeliverMarkersQueueHead(): Boolean = {
+  private def shouldRedeliverMarkersQueueHead(now: Timestamp): Boolean = {
     markersByTimestamp.headOption match {
       case None => false
-      case Some(m) => clock.millis() >= m.value.getRedeliverTimestamp
+      case Some(m) => now >= m.value.getRedeliverTimestamp
     }
   }
 

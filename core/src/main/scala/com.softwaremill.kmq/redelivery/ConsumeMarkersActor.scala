@@ -15,7 +15,7 @@ import scala.collection.JavaConverters._
 
 class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Actor with StrictLogging {
   
-  private val markersQueues = new MarkersQueues(Clock.systemDefaultZone)
+  private val markersQueues = new MarkersQueues()
 
   private var markerConsumer: KafkaConsumer[MarkerKey, MarkerValue] = _
   private var producer: KafkaProducer[Array[Byte], Array[Byte]] = _
@@ -109,7 +109,7 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
       sender() ! OffsetsToCommit(markersQueues.smallestMarkerOffsetsPerPartition())
 
     case GetMarkersToRedeliver(partition) =>
-      val m = markersQueues.markersToRedeliver(partition)
+      val m = markersQueues.markersToRedeliver(partition, System.currentTimeMillis())
       /* Sending back to sender, instead of looking up the actor in `redeliverActors`, as this might be a request
       coming from an actor whose partition was already removed - and possibly replaced by a new one (for the same
       partition), which does its own scheduling. */
