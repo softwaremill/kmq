@@ -4,27 +4,27 @@ import java.nio.ByteBuffer;
 import java.util.Objects;
 
 public class StartMarker implements MarkerValue {
-    private final long redeliverTimestamp;
+    private final long redeliverAfter;
 
-    public StartMarker(long redeliverTimestamp) {
-        this.redeliverTimestamp = redeliverTimestamp;
+    public StartMarker(long redeliverAfter) {
+        this.redeliverAfter = redeliverAfter;
     }
 
-    public long getRedeliverTimestamp() {
-        return redeliverTimestamp;
+    public long getRedeliverAfter() {
+        return redeliverAfter;
     }
 
     public byte[] serialize() {
         return ByteBuffer.allocate(1 + 8)
                 .put((byte) 1)
-                .putLong(redeliverTimestamp)
+                .putLong(redeliverAfter)
                 .array();
     }
 
     @Override
     public String toString() {
         return "StartMarker{" +
-                "redeliverTimestamp=" + redeliverTimestamp +
+                "redeliverAfter=" + redeliverAfter +
                 '}';
     }
 
@@ -33,11 +33,11 @@ public class StartMarker implements MarkerValue {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         StartMarker that = (StartMarker) o;
-        return redeliverTimestamp == that.redeliverTimestamp;
+        return redeliverAfter == that.redeliverAfter;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(redeliverTimestamp);
+        return Objects.hash(redeliverAfter);
     }
 }

@@ -5,8 +5,8 @@ import com.softwaremill.kmq.{MarkerKey, MarkerValue}
 class MarkersQueues {
   private var markersQueues = Map[Partition, MarkersQueue]()
 
-  def handleMarker(markerOffset: Offset, k: MarkerKey, v: MarkerValue): Unit = {
-    markersQueues.get(k.getPartition).foreach(_.handleMarker(markerOffset, k, v))
+  def handleMarker(markerOffset: Offset, k: MarkerKey, v: MarkerValue, t: Timestamp): Unit = {
+    markersQueues.get(k.getPartition).foreach(_.handleMarker(markerOffset, k, v, t))
   }
 
   def smallestMarkerOffsetsPerPartition(): Map[Partition, Offset] = {
@@ -15,7 +15,7 @@ class MarkersQueues {
     }
   }
 
-  def markersToRedeliver(p: Partition, now: Timestamp): List[Marker] = {
+  def markersToRedeliver(p: Partition, now: Timestamp): List[MarkerKey] = {
     markersQueues.get(p).map(_.markersToRedeliver(now)).getOrElse(Nil)
   }
 

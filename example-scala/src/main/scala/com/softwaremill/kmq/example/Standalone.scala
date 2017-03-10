@@ -1,11 +1,11 @@
 package com.softwaremill.kmq.example
 
-import java.time.{Clock, Duration}
+import java.time.Duration
 import java.util.Random
 
 import akka.actor.ActorSystem
-import akka.kafka.{ConsumerSettings, ProducerMessage, ProducerSettings, Subscriptions}
 import akka.kafka.scaladsl.{Consumer, Producer}
+import akka.kafka.{ConsumerSettings, ProducerMessage, ProducerSettings, Subscriptions}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 import com.softwaremill.kmq._
@@ -25,8 +25,6 @@ object StandaloneReactiveClient extends App with StrictLogging {
   implicit val materializer = ActorMaterializer()
   import system.dispatcher
 
-  val clock = Clock.systemUTC()
-
   val consumerSettings = ConsumerSettings(system, new StringDeserializer, new StringDeserializer)
     .withBootstrapServers(bootstrapServer)
     .withGroupId(kmqConfig.getMsgConsumerGroupId)
@@ -43,7 +41,7 @@ object StandaloneReactiveClient extends App with StrictLogging {
   Consumer.committableSource(consumerSettings, Subscriptions.topics(kmqConfig.getMsgTopic)) // 1. get messages from topic
     .map { msg =>
       ProducerMessage.Message(
-        new ProducerRecord[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, MarkerKey.fromRecord(msg.record), new StartMarker(clock.millis + kmqConfig.getMsgTimeout)), msg)
+        new ProducerRecord[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, MarkerKey.fromRecord(msg.record), new StartMarker(kmqConfig.getMsgTimeout)), msg)
     }
     .via(Producer.flow(markerProducerSettings, markerProducer)) // 2. write the "start" marker
     .map(_.message.passThrough)
@@ -69,7 +67,7 @@ object StandaloneReactiveClient extends App with StrictLogging {
   logger.info("Press any key to exit ...")
   StdIn.readLine()
 
-  Await.result(system.terminate(), 1 minute)
+  Await.result(system.terminate(), 1.minute)
 }
 
 object StandaloneSender extends App with StrictLogging {
@@ -80,7 +78,7 @@ object StandaloneSender extends App with StrictLogging {
   val producerSettings = ProducerSettings(system, new StringSerializer(), new StringSerializer())
     .withBootstrapServers(bootstrapServer)
 
-  Source.tick(0 seconds, 100 millis, ()).zip(Source.unfold(0)(x => Some(x+1, x+1))).map(_._2)
+  Source.tick(0.seconds, 100.millis, ()).zip(Source.unfold(0)(x => Some(x+1, x+1))).map(_._2)
     .map(msg => s"message number $msg")
     .take(100)
     .map { msg => logger.info(s"Sending: '$msg'"); msg }
@@ -91,7 +89,7 @@ object StandaloneSender extends App with StrictLogging {
   logger.info("Press any key to exit ...")
   StdIn.readLine()
 
-  Await.result(system.terminate(), 1 minute)
+  Await.result(system.terminate(), 1.minute)
 }
 
 object StandaloneTracker extends App with StrictLogging {

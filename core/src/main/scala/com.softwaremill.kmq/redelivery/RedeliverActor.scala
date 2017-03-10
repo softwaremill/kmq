@@ -30,10 +30,10 @@ class RedeliverActor(p: Partition, redeliverer: Redeliverer, markersActor: Actor
         .collect { case m: MarkersToRedeliver => m }
         .foreach {
           case MarkersToRedeliver(m, retryCounter) if retryCounter > MaxRetries =>
-            logger.error(s"Cannot redeliver markers: ${m.map(_.key)}, tried $MaxRetries times, giving up")
+            logger.error(s"Cannot redeliver markers: $m, tried $MaxRetries times, giving up")
 
           case MarkersToRedeliver(m, retryCounter) =>
-            logger.info(s"Failed to redeliver markers ${m.map(_.key)}, trying again (retry number $retryCounter)")
+            logger.info(s"Failed to redeliver markers $m, trying again (retry number $retryCounter)")
             
             // trying to redeliver one-by-one instead of a batch
             m.foreach { marker =>

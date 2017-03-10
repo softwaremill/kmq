@@ -11,7 +11,6 @@ import org.apache.kafka.common.serialization.Deserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -35,19 +34,17 @@ public class KmqClient<K, V> {
     private final static Logger LOG = LoggerFactory.getLogger(KmqClient.class);
 
     private final KmqConfig config;
-    private final Clock clock;
     private final long msgPollTimeout;
 
     private final KafkaConsumer<K, V> msgConsumer;
     private final KafkaProducer<MarkerKey, MarkerValue> markerProducer;
 
-    public KmqClient(KmqConfig config, Clock clock, KafkaClients clients,
+    public KmqClient(KmqConfig config, KafkaClients clients,
                      Class<? extends Deserializer<K>> keyDeserializer,
                      Class<? extends Deserializer<V>> valueDeserializer,
                      long msgPollTimeout) {
 
         this.config = config;
-        this.clock = clock;
         this.msgPollTimeout = msgPollTimeout;
 
         this.msgConsumer = clients.createConsumer(config.getMsgConsumerGroupId(), keyDeserializer, valueDeserializer);
@@ -70,7 +67,7 @@ public class KmqClient<K, V> {
             markerSends.add(markerProducer.send(
                     new ProducerRecord<>(config.getMarkerTopic(),
                             MarkerKey.fromRecord(record),
-                            new StartMarker(clock.millis()+config.getMsgTimeout()))));
+                            new StartMarker(config.getMsgTimeout()))));
         }
 
         // Waiting for a confirmation that each start marker has been sent

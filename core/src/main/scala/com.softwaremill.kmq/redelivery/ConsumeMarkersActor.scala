@@ -1,6 +1,5 @@
 package com.softwaremill.kmq.redelivery
 
-import java.time.Clock
 import java.util.Collections
 
 import akka.actor.{Actor, ActorRef, Props}
@@ -14,7 +13,9 @@ import org.apache.kafka.common.serialization.ByteArraySerializer
 import scala.collection.JavaConverters._
 
 class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Actor with StrictLogging {
-  
+
+  private val OneSecond = 1000L
+
   private val markersQueues = new MarkersQueues()
 
   private var markerConsumer: KafkaConsumer[MarkerKey, MarkerValue] = _
@@ -117,9 +118,9 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
 
     case ConsumeMarkers =>
       try {
-        val markers = markerConsumer.poll(1000L)
+        val markers = markerConsumer.poll(OneSecond)
         for (record <- markers.asScala) {
-          markersQueues.handleMarker(record.offset(), record.key(), record.value())
+          markersQueues.handleMarker(record.offset(), record.key(), record.value(), record.timestamp())
         }
       } finally self ! ConsumeMarkers
   }
@@ -129,7 +130,7 @@ case object GetOffsetsToCommit
 case class OffsetsToCommit(offsets: Map[Partition, Offset])
 
 case class GetMarkersToRedeliver(partition: Partition)
-case class MarkersToRedeliver(markers: List[Marker], retryCounter: Int)
+case class MarkersToRedeliver(markers: List[MarkerKey], retryCounter: Int)
 
 case object ConsumeMarkers
 

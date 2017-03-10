@@ -25,8 +25,7 @@ class StandaloneProcessor {
     public static void main(String[] args) throws InterruptedException, IOException {
         UncaughtExceptionHandling.setup();
 
-        KmqClient<ByteBuffer, ByteBuffer> kmqClient = new KmqClient<>(KMQ_CONFIG,
-                Clock.systemDefaultZone(), KAFKA_CLIENTS,
+        KmqClient<ByteBuffer, ByteBuffer> kmqClient = new KmqClient<>(KMQ_CONFIG, KAFKA_CLIENTS,
                 ByteBufferDeserializer.class, ByteBufferDeserializer.class, 100);
 
         ExecutorService msgProcessingExecutor = Executors.newCachedThreadPool();
