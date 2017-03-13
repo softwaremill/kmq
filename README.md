@@ -49,6 +49,22 @@ There are three example applications:
 * `example-java/standalone`: three separate runnable classes to start the different components
 * `example-scala`: an implementation of the client using [reactive-kafka](https://github.com/akka/reactive-kafka)
 
+# Time & timestamps
+
+How time is handled is crucial for message redelivery, as messages are redelivered after a given amount of time passes
+since the `start` marker was sent.
+
+To track what was sent when, `kmq` uses Kafka's message timestamp. By default this is messages create time
+(`message.timestamp.type=CreateTime`), but for the `markers` topic, it is advisable to switch this to `LogAppendTime`.
+That way, the timestamps more closely reflect when the markers are really written to the log, and are guaranteed to be
+monotonic in each partition (which is important for redelivery - see below).
+
+To calculate which messages should be redelivered, we need to know the value of "now", to check which `start` markers
+have been sent later than the configured timeout. When a marker has been received from a partition recently, the
+maximum such timestamp is used as the value of "now" - as it indicates exactly how far we are in processing the
+partition. What "recently" means depends on the `useNowForRedeliverDespiteNoMarkerSeenForMs` config setting. Otherwise,
+the current system time is used, as we assume that all markers from the partition have been processed.
+
 # Project status
 
 No releases (yet?). The code is of proof-of-concept quality.
