@@ -16,22 +16,16 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
 
   private val OneSecond = 1000L
 
-  private val markersQueues = new MarkersQueues()
-
   private var markerConsumer: KafkaConsumer[MarkerKey, MarkerValue] = _
   private var producer: KafkaProducer[Array[Byte], Array[Byte]] = _
 
-  private var redeliverActors: Map[Partition, ActorRef] = Map()
+  private var assignedPartitions: Map[Partition, AssignedPartition] = Map()
 
   private var redeliverActorNameCounter = 1
 
-  override def preStart(): Unit = {
-    /* First, sending a start message, which will cause the correct `Receive` block to be used. This is used to discard
-     any old messages in case the actor was restarted in case of an exception. If the messages wouldn't be discarded, as
-     we are starting e.g. offset committing (among other things) later on, the old requests to get offsets could get
-     mixed up with new ones, and cause offset committing to be done too frequently. */
-    self ! StartConsumerMarkers
+  private var commitMarkerOffsetsActor: ActorRef = _
 
+  override def preStart(): Unit = {
     markerConsumer = clients.createConsumer(config.getRedeliveryConsumerGroupId,
       classOf[MarkerKey.MarkerKeyDeserializer],
       classOf[MarkerValue.MarkerValueDeserializer])
@@ -43,11 +37,10 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
         logger.info(s"Revoked marker partitions: ${partitions.asScala.toList.map(_.partition())}")
 
         partitions.asScala.foreach { tp =>
-          markersQueues.removePartition(tp.partition())
-          redeliverActors.get(tp.partition()).foreach { redeliverActor =>
-            context.stop(redeliverActor)
-            redeliverActors -= tp.partition()
+          assignedPartitions.get(tp.partition()).foreach { ap =>
+            context.stop(ap.redeliverActor)
           }
+          assignedPartitions -= tp.partition()
         }
       }
 
@@ -56,13 +49,14 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
 
         val endOffsets = markerConsumer.endOffsets(partitions)
         partitions.asScala.foreach { tp =>
-          markersQueues.addPartition(tp.partition(), endOffsets.get(tp) - 1)
-
           val redeliverActor = context.actorOf(
-            Props(new RedeliverActor(tp.partition(), new Redeliverer(tp.partition(), producer, config, clients), self)),
+            Props(new RedeliverActor(tp.partition(),
+              new RetryingRedeliverer(new DefaultRedeliverer(tp.partition(), producer, config, clients)))),
             s"redeliver-actor-${tp.partition()}-$redeliverActorNameCounter")
-          redeliverActor ! GetMarkersToRedeliver(tp.partition())
-          redeliverActors += tp.partition() -> redeliverActor
+          redeliverActor ! DoRedeliver
+
+          assignedPartitions += tp.partition() -> AssignedPartition(
+            new MarkersQueue(endOffsets.get(tp) - 1), redeliverActor, None, None)
 
           redeliverActorNameCounter += 1
         }
@@ -71,17 +65,15 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
 
     setupOffsetCommitting()
 
-    self ! ConsumeMarkers
-
     logger.info("Consume markers actor setup complete, waiting for the start message to be processed ...")
   }
 
   private def setupOffsetCommitting(): Unit = {
-    val commitMarkerOffsetsActor = context.actorOf(
-      Props(new CommitMarkerOffsetsActor(config.getMarkerTopic, clients, self)),
+    commitMarkerOffsetsActor = context.actorOf(
+      Props(new CommitMarkerOffsetsActor(config.getMarkerTopic, clients)),
       "commit-marker-offsets")
 
-    commitMarkerOffsetsActor ! GetOffsetsToCommit
+    commitMarkerOffsetsActor ! DoCommit
   }
 
   override def postStop(): Unit = {
@@ -99,39 +91,76 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
   }
 
   override def receive: Receive = {
-    case StartConsumerMarkers =>
-      logger.info("Started consume markers actor")
-      context.become(started)
-    case m => logger.info(s"Dropping message $m as the $StartConsumerMarkers message has not yet been received")
+    case DoConsume =>
+      try {
+        val markers = markerConsumer.poll(OneSecond).asScala
+        val now = System.currentTimeMillis()
+
+        markers.groupBy(_.partition()).foreach { case (partition, records) =>
+            assignedPartitions.get(partition) match {
+              case None =>
+                throw new IllegalStateException(s"Got marker for partition $partition: ${records.map(_.key())}, but partition is not assigned!")
+
+              case Some(ap) =>
+                records.foreach { record =>
+                  ap.markersQueue.handleMarker(record.offset(), record.key(), record.value(), record.timestamp())
+                }
+
+                ap.updateLatestSeenMarkerTimestamp(records.maxBy(_.timestamp()).timestamp(), now)
+
+                ap.markersQueue.smallestMarkerOffset().foreach { offset =>
+                  commitMarkerOffsetsActor ! CommitOffset(partition, offset)
+                }
+            }
+        }
+
+        assignedPartitions.values.foreach { ap =>
+          ap.redeliverTimestamp(now).foreach { rt =>
+            sendRedeliverMarkers(ap, rt)
+          }
+        }
+      } finally self ! DoConsume
   }
 
-  private def started: Receive = {
-    case GetOffsetsToCommit =>
-      sender() ! OffsetsToCommit(markersQueues.smallestMarkerOffsetsPerPartition())
+  private case class AssignedPartition(markersQueue: MarkersQueue, redeliverActor: ActorRef,
+    var latestSeenMarkerTimestamp: Option[Timestamp], var latestMarkerSeenAt: Option[Timestamp]) {
 
-    case GetMarkersToRedeliver(partition) =>
-      val m = markersQueues.markersToRedeliver(partition, System.currentTimeMillis())
-      /* Sending back to sender, instead of looking up the actor in `redeliverActors`, as this might be a request
-      coming from an actor whose partition was already removed - and possibly replaced by a new one (for the same
-      partition), which does its own scheduling. */
-      sender() ! MarkersToRedeliver(m, 1)
+    def updateLatestSeenMarkerTimestamp(markerTimestmap: Timestamp, now: Timestamp): Unit = {
+      latestSeenMarkerTimestamp = Some(markerTimestmap)
+      latestMarkerSeenAt = Some(now)
+    }
 
-    case ConsumeMarkers =>
-      try {
-        val markers = markerConsumer.poll(OneSecond)
-        for (record <- markers.asScala) {
-          markersQueues.handleMarker(record.offset(), record.key(), record.value(), record.timestamp())
+    def redeliverTimestamp(now: Timestamp): Option[Timestamp] = {
+      // No markers seen at all -> no sense to check for redelivery
+      latestMarkerSeenAt.flatMap { lm =>
+        if (now - lm < config.getUseNowForRedeliverDespiteNoMarkerSeenForMs) {
+          /* If we've seen a marker recently, then using the latest seen marker (which is the maximum marker offset seen
+          at all) for computing redelivery. This guarantees that we won't redeliver a message for which an end marker
+          was sent, but is waiting in the topic for being observed, even though comparing the wall clock time and start
+          marker timestamp exceeds the message timeout. */
+          latestSeenMarkerTimestamp
+        } else {
+          /* If we haven't seen a marker recently, assuming that it's because all available have been observed. Hence
+          there are no delays in processing of the markers, so we can use the current time for computing which messages
+          should be redelivered. */
+          Some(now)
         }
-      } finally self ! ConsumeMarkers
+      }
+    }
+  }
+
+  private def sendRedeliverMarkers(ap: AssignedPartition, t: Timestamp): Unit = {
+    val toRedeliver = ap.markersQueue.markersToRedeliver(t)
+    if (toRedeliver.nonEmpty) {
+      ap.redeliverActor ! RedeliverMarkers(toRedeliver)
+    }
   }
 }
 
-case object GetOffsetsToCommit
-case class OffsetsToCommit(offsets: Map[Partition, Offset])
+case class CommitOffset(p: Partition, o: Offset)
+case object DoCommit
 
-case class GetMarkersToRedeliver(partition: Partition)
-case class MarkersToRedeliver(markers: List[MarkerKey], retryCounter: Int)
+case class RedeliverMarkers(markers: List[MarkerKey])
+case object DoRedeliver
 
-case object ConsumeMarkers
-
-case object StartConsumerMarkers
+case object DoConsume

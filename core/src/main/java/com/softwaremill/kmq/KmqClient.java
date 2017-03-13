@@ -67,7 +67,7 @@ public class KmqClient<K, V> {
             markerSends.add(markerProducer.send(
                     new ProducerRecord<>(config.getMarkerTopic(),
                             MarkerKey.fromRecord(record),
-                            new StartMarker(config.getMsgTimeout()))));
+                            new StartMarker(config.getMsgTimeoutMs()))));
         }
 
         // Waiting for a confirmation that each start marker has been sent

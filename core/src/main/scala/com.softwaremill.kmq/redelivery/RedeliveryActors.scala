@@ -13,7 +13,8 @@ object RedeliveryActors extends StrictLogging {
   def start(clients: KafkaClients, config: KmqConfig): Closeable = {
     val system = ActorSystem("kmq-redelivery")
 
-    system.actorOf(Props(new ConsumeMarkersActor(clients, config)), "consume-markers-actor")
+    val consumeMakersActor = system.actorOf(Props(new ConsumeMarkersActor(clients, config)), "consume-markers-actor")
+    consumeMakersActor ! DoConsume
 
     logger.info("Started redelivery actors")
 

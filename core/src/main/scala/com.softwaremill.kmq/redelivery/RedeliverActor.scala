@@ -1,12 +1,14 @@
 package com.softwaremill.kmq.redelivery
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.Actor
+import com.softwaremill.kmq.MarkerKey
 import com.typesafe.scalalogging.StrictLogging
 
 import scala.concurrent.duration._
 
-class RedeliverActor(p: Partition, redeliverer: Redeliverer, markersActor: ActorRef) extends Actor with StrictLogging {
-  private val MaxRetries = 16
+class RedeliverActor(p: Partition, redeliverer: Redeliverer) extends Actor with StrictLogging {
+
+  private var toRedeliver: List[MarkerKey] = Nil
 
   import context.dispatcher
 
@@ -17,36 +19,20 @@ class RedeliverActor(p: Partition, redeliverer: Redeliverer, markersActor: Actor
   override def postStop(): Unit = {
     try redeliverer.close()
     catch {
-      case e: Exception => logger.error(s"Cannot close redeliver for partition $p", e)
+      case e: Exception => logger.error(s"Cannot close redeliverer for partition $p", e)
     }
     
     logger.info(s"${self.path} Stopped redeliver actor for partition $p")
   }
 
-  override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
-    super.preRestart(reason, message)
-
-    message
-        .collect { case m: MarkersToRedeliver => m }
-        .foreach {
-          case MarkersToRedeliver(m, retryCounter) if retryCounter > MaxRetries =>
-            logger.error(s"Cannot redeliver markers: $m, tried $MaxRetries times, giving up")
-
-          case MarkersToRedeliver(m, retryCounter) =>
-            logger.info(s"Failed to redeliver markers $m, trying again (retry number $retryCounter)")
-            
-            // trying to redeliver one-by-one instead of a batch
-            m.foreach { marker =>
-              self ! MarkersToRedeliver(List(marker), retryCounter + 1)
-            }
-        }
-  }
-
   override def receive: Receive = {
-    case MarkersToRedeliver(m, _) =>
-      try redeliverer.redeliver(m)
-      finally context.system.scheduler.scheduleOnce(1.second, self, GetMarkersToRedeliver(p))
+    case RedeliverMarkers(m) =>
+      toRedeliver ++= m
 
-    case gm: GetMarkersToRedeliver => markersActor ! gm
+    case DoRedeliver =>
+      try {
+        redeliverer.redeliver(toRedeliver)
+        toRedeliver = Nil
+      } finally context.system.scheduler.scheduleOnce(1.second, self, DoRedeliver)
   }
 }

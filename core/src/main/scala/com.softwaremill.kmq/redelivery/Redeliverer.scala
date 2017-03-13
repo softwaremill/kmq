@@ -10,8 +10,17 @@ import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord, RecordM
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 
-class Redeliverer(partition: Partition, producer: KafkaProducer[Array[Byte], Array[Byte]],
-                  config: KmqConfig, clients: KafkaClients) extends StrictLogging {
+import scala.annotation.tailrec
+
+trait Redeliverer {
+  def redeliver(toRedeliver: List[MarkerKey]): Unit
+  def close(): Unit
+}
+
+class DefaultRedeliverer(
+  partition: Partition, producer: KafkaProducer[Array[Byte], Array[Byte]],
+  config: KmqConfig, clients: KafkaClients)
+  extends Redeliverer with StrictLogging {
 
   private val PollTimeout = Duration.ofSeconds(100).toMillis
   private val SendTimeoutSeconds = 60L
@@ -60,4 +69,38 @@ class Redeliverer(partition: Partition, producer: KafkaProducer[Array[Byte], Arr
   private case class RedeliveredMarker(marker: MarkerKey, sendResult: Future[RecordMetadata])
 
   def close(): Unit = consumer.close()
+}
+
+class RetryingRedeliverer(delegate: Redeliverer) extends Redeliverer with StrictLogging {
+  private val MaxBatch = 128
+  private val MaxRetries = 16
+
+  override def redeliver(toRedeliver: List[MarkerKey]): Unit = {
+    tryRedeliver(toRedeliver.grouped(MaxBatch).toList.map(RedeliveryBatch(_, 1)))
+  }
+
+  @tailrec
+  private def tryRedeliver(batches: List[RedeliveryBatch]): Unit = {
+    val batchesToRetry = batches.flatMap { batch =>
+      try {
+        delegate.redeliver(batch.markers)
+        Nil // redelivered, nothing to retry
+      } catch {
+        case e: Exception if batch.retry < MaxRetries =>
+          logger.warn(s"Exception when trying to redeliver ${batch.markers}. Will try again.", e)
+          batch.markers.map(m => RedeliveryBatch(List(m), batch.retry+1)) // retrying one-by-one
+        case e: Exception =>
+          logger.error(s"Exception when trying to redeliver ${batch.markers}. Tried $MaxRetries, Will not try again.", e)
+          Nil
+      }
+    }
+
+    if (batchesToRetry.nonEmpty) {
+      tryRedeliver(batchesToRetry)
+    }
+  }
+
+  override def close(): Unit = delegate.close()
+
+  private case class RedeliveryBatch(markers: List[MarkerKey], retry: Int)
 }

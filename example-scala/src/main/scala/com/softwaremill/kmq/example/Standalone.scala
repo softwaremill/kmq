@@ -41,7 +41,7 @@ object StandaloneReactiveClient extends App with StrictLogging {
   Consumer.committableSource(consumerSettings, Subscriptions.topics(kmqConfig.getMsgTopic)) // 1. get messages from topic
     .map { msg =>
       ProducerMessage.Message(
-        new ProducerRecord[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, MarkerKey.fromRecord(msg.record), new StartMarker(kmqConfig.getMsgTimeout)), msg)
+        new ProducerRecord[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, MarkerKey.fromRecord(msg.record), new StartMarker(kmqConfig.getMsgTimeoutMs)), msg)
     }
     .via(Producer.flow(markerProducerSettings, markerProducer)) // 2. write the "start" marker
     .map(_.message.passThrough)
@@ -105,5 +105,6 @@ object StandaloneTracker extends App with StrictLogging {
 
 object StandaloneConfig {
   val bootstrapServer = "localhost:9092"
-  val kmqConfig = new KmqConfig("queue", "markers", "kmq_client", "kmq_redelivery", Duration.ofSeconds(10).toMillis)
+  val kmqConfig = new KmqConfig("queue", "markers", "kmq_client", "kmq_redelivery", Duration.ofSeconds(10).toMillis,
+    1000)
 }
