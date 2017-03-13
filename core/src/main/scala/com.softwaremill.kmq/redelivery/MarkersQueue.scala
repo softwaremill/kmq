@@ -6,8 +6,8 @@ import scala.collection.mutable
 
 class MarkersQueue(disableRedeliveryBefore: Offset) {
   private val markersInProgress = mutable.Set[MarkerKey]()
-  private val markersByTimestamp = new mutable.PriorityQueue[(MarkerKey, Timestamp)]()(bySecondTupleOrdering)
-  private val markersByOffset = new mutable.PriorityQueue[(MarkerKey, Offset)]()(bySecondTupleOrdering)
+  private val markersByTimestamp = new mutable.PriorityQueue[AttributedMarkerKey[Timestamp]]()(byAttributeOrdering)
+  private val markersByOffset = new mutable.PriorityQueue[AttributedMarkerKey[Offset]]()(byAttributeOrdering)
   private var redeliveryEnabled = false
 
   def handleMarker(markerOffset: Offset, k: MarkerKey, v: MarkerValue, t: Timestamp) {
@@ -17,8 +17,8 @@ class MarkersQueue(disableRedeliveryBefore: Offset) {
 
     v match {
       case s: StartMarker =>
-        markersByOffset.enqueue((k, markerOffset))
-        markersByTimestamp.enqueue((k, t+s.getRedeliverAfter))
+        markersByOffset.enqueue(AttributedMarkerKey(k, markerOffset))
+        markersByTimestamp.enqueue(AttributedMarkerKey(k, t+s.getRedeliverAfter))
         markersInProgress += k
 
       case _: EndMarker =>
@@ -36,8 +36,8 @@ class MarkersQueue(disableRedeliveryBefore: Offset) {
         val queueHead = markersByTimestamp.dequeue()
         // the first marker, if any, is not ended for sure (b/c of the cleanup that's done at the beginning),
         // but subsequent markers don't have to be.
-        if (markersInProgress.contains(queueHead._1)) {
-          toRedeliver ::= queueHead._1
+        if (markersInProgress.contains(queueHead.key)) {
+          toRedeliver ::= queueHead.key
         }
 
         // not removing from markersInProgress - until we are sure the message is redelivered (the redeliverer
@@ -51,29 +51,31 @@ class MarkersQueue(disableRedeliveryBefore: Offset) {
 
   def smallestMarkerOffset(): Option[Offset] = {
     removeEndedMarkers(markersByOffset)
-    markersByOffset.headOption.map(_._2)
+    markersByOffset.headOption.map(_.attr)
   }
 
-  private def removeEndedMarkers[T](queue: mutable.PriorityQueue[(MarkerKey, T)]): Unit = {
+  private def removeEndedMarkers[T](queue: mutable.PriorityQueue[AttributedMarkerKey[T]]): Unit = {
     while (isHeadEnded(queue)) {
       queue.dequeue()
     }
   }
 
-  private def isHeadEnded[T](queue: mutable.PriorityQueue[(MarkerKey, T)]): Boolean = {
-    queue.headOption.exists(e => !markersInProgress.contains(e._1))
+  private def isHeadEnded[T](queue: mutable.PriorityQueue[AttributedMarkerKey[T]]): Boolean = {
+    queue.headOption.exists(e => !markersInProgress.contains(e.key))
   }
 
   private def shouldRedeliverMarkersQueueHead(now: Timestamp): Boolean = {
     markersByTimestamp.headOption match {
       case None => false
-      case Some(m) => now >= m._2
+      case Some(m) => now >= m.attr
     }
   }
 
-  private def bySecondTupleOrdering[T, U: Ordering]: Ordering[(T, U)] = new Ordering[(T, U)] {
-    override def compare(x: (T, U), y: (T, U)): Int = {
-      implicitly[Ordering[U]].compare(x._2, y._2)
+  private case class AttributedMarkerKey[T](key: MarkerKey, attr: T)
+
+  private def byAttributeOrdering[T: Ordering]: Ordering[AttributedMarkerKey[T]] = new Ordering[AttributedMarkerKey[T]] {
+    override def compare(x: AttributedMarkerKey[T], y: AttributedMarkerKey[T]): Int = {
+      implicitly[Ordering[T]].compare(x.attr, y.attr)
     }
   }
 }
