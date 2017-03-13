@@ -100,44 +100,20 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
         val now = System.currentTimeMillis()
 
         markers.groupBy(_.partition()).foreach { case (partition, records) =>
-            assignedPartitions.get(partition) match {
-              case None =>
-                throw new IllegalStateException(s"Got marker for partition $partition: ${records.map(_.key())}, but partition is not assigned!")
+          assignedPartitions.get(partition) match {
+            case None =>
+              throw new IllegalStateException(s"Got marker for partition $partition: ${records.map(_.key())}, but partition is not assigned!")
 
-              case Some(ap) =>
-                handleRecordsForPartition(partition, ap, records, now)
-            }
-        }
-
-        assignedPartitions.values.foreach { ap =>
-          ap.redeliverTimestamp(now).foreach { rt =>
-            sendRedeliverMarkers(ap, rt)
+            case Some(ap) =>
+              ap.handleRecords(records, now)
+              ap.markersQueue.smallestMarkerOffset().foreach { offset =>
+                commitMarkerOffsetsActor ! CommitOffset(partition, offset)
+              }
           }
         }
+
+        assignedPartitions.values.foreach(_.sendRedeliverMarkers(now))
       } finally self ! DoConsume
-  }
-
-  private def handleRecordsForPartition(
-    p: Partition, ap: AssignedPartition,
-    records: Iterable[ConsumerRecord[MarkerKey, MarkerValue]],
-    now: Timestamp): Unit = {
-
-    records.foreach { record =>
-      ap.markersQueue.handleMarker(record.offset(), record.key(), record.value(), record.timestamp())
-    }
-
-    ap.updateLatestSeenMarkerTimestamp(records.maxBy(_.timestamp()).timestamp(), now)
-
-    ap.markersQueue.smallestMarkerOffset().foreach { offset =>
-      commitMarkerOffsetsActor ! CommitOffset(p, offset)
-    }
-  }
-
-  private def sendRedeliverMarkers(ap: AssignedPartition, t: Timestamp): Unit = {
-    val toRedeliver = ap.markersQueue.markersToRedeliver(t)
-    if (toRedeliver.nonEmpty) {
-      ap.redeliverActor ! RedeliverMarkers(toRedeliver)
-    }
   }
 
   private case class AssignedPartition(
@@ -149,7 +125,24 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
       latestMarkerSeenAt = Some(now)
     }
 
-    def redeliverTimestamp(now: Timestamp): Option[Timestamp] = {
+    def handleRecords(records: Iterable[ConsumerRecord[MarkerKey, MarkerValue]], now: Timestamp): Unit = {
+      records.foreach { record =>
+        markersQueue.handleMarker(record.offset(), record.key(), record.value(), record.timestamp())
+      }
+
+      updateLatestSeenMarkerTimestamp(records.maxBy(_.timestamp()).timestamp(), now)
+    }
+
+    def sendRedeliverMarkers(now: Timestamp): Unit = {
+      redeliverTimestamp(now).foreach { rt =>
+        val toRedeliver = markersQueue.markersToRedeliver(rt)
+        if (toRedeliver.nonEmpty) {
+          redeliverActor ! RedeliverMarkers(toRedeliver)
+        }
+      }
+    }
+
+    private def redeliverTimestamp(now: Timestamp): Option[Timestamp] = {
       // No markers seen at all -> no sense to check for redelivery
       latestMarkerSeenAt.flatMap { lm =>
         if (now - lm < config.getUseNowForRedeliverDespiteNoMarkerSeenForMs) {
