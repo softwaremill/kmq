@@ -5,7 +5,7 @@ import java.util.Collections
 import akka.actor.{Actor, ActorRef, Props}
 import com.softwaremill.kmq.{KafkaClients, KmqConfig, MarkerKey, MarkerValue}
 import com.typesafe.scalalogging.StrictLogging
-import org.apache.kafka.clients.consumer.{ConsumerRebalanceListener, KafkaConsumer}
+import org.apache.kafka.clients.consumer.{ConsumerRebalanceListener, ConsumerRecord, KafkaConsumer}
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.ByteArraySerializer
@@ -32,40 +32,43 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
 
     producer = clients.createProducer(classOf[ByteArraySerializer], classOf[ByteArraySerializer])
 
+    setupMarkerConsumer()
+    setupOffsetCommitting()
+
+    logger.info("Consume markers actor setup complete")
+  }
+
+  private def setupMarkerConsumer(): Unit = {
     markerConsumer.subscribe(Collections.singleton(config.getMarkerTopic), new ConsumerRebalanceListener() {
       def onPartitionsRevoked(partitions: java.util.Collection[TopicPartition]) {
         logger.info(s"Revoked marker partitions: ${partitions.asScala.toList.map(_.partition())}")
-
-        partitions.asScala.foreach { tp =>
-          assignedPartitions.get(tp.partition()).foreach { ap =>
-            context.stop(ap.redeliverActor)
-          }
-          assignedPartitions -= tp.partition()
-        }
+        partitions.asScala.foreach(tp => partitionRevoked(tp.partition()))
       }
 
       def onPartitionsAssigned(partitions: java.util.Collection[TopicPartition]) {
         logger.info(s"Assigned marker partitions: ${partitions.asScala.toList.map(_.partition())}")
-
         val endOffsets = markerConsumer.endOffsets(partitions)
-        partitions.asScala.foreach { tp =>
-          val redeliverActor = context.actorOf(
-            Props(new RedeliverActor(tp.partition(),
-              new RetryingRedeliverer(new DefaultRedeliverer(tp.partition(), producer, config, clients)))),
-            s"redeliver-actor-${tp.partition()}-$redeliverActorNameCounter")
-          redeliverActor ! DoRedeliver
-
-          assignedPartitions += tp.partition() -> AssignedPartition(
-            new MarkersQueue(endOffsets.get(tp) - 1), redeliverActor, None, None)
-
-          redeliverActorNameCounter += 1
-        }
+        partitions.asScala.foreach(tp => partitionAssigned(tp.partition(), endOffsets.get(tp) - 1))
       }
     })
+  }
 
-    setupOffsetCommitting()
+  private def partitionRevoked(p: Partition): Unit = {
+    assignedPartitions.get(p).foreach { ap =>
+      context.stop(ap.redeliverActor)
+    }
+    assignedPartitions -= p
+  }
 
-    logger.info("Consume markers actor setup complete, waiting for the start message to be processed ...")
+  private def partitionAssigned(p: Partition, endOffset: Offset): Unit = {
+    val redeliverActor = context.actorOf(
+      Props(new RedeliverActor(p,
+        new RetryingRedeliverer(new DefaultRedeliverer(p, producer, config, clients)))),
+      s"redeliver-actor-$p-$redeliverActorNameCounter")
+    redeliverActor ! DoRedeliver
+
+    assignedPartitions += p -> AssignedPartition(new MarkersQueue(endOffset - 1), redeliverActor, None, None)
+    redeliverActorNameCounter += 1
   }
 
   private def setupOffsetCommitting(): Unit = {
@@ -102,15 +105,7 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
                 throw new IllegalStateException(s"Got marker for partition $partition: ${records.map(_.key())}, but partition is not assigned!")
 
               case Some(ap) =>
-                records.foreach { record =>
-                  ap.markersQueue.handleMarker(record.offset(), record.key(), record.value(), record.timestamp())
-                }
-
-                ap.updateLatestSeenMarkerTimestamp(records.maxBy(_.timestamp()).timestamp(), now)
-
-                ap.markersQueue.smallestMarkerOffset().foreach { offset =>
-                  commitMarkerOffsetsActor ! CommitOffset(partition, offset)
-                }
+                handleRecordsForPartition(partition, ap, records, now)
             }
         }
 
@@ -122,11 +117,35 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
       } finally self ! DoConsume
   }
 
-  private case class AssignedPartition(markersQueue: MarkersQueue, redeliverActor: ActorRef,
+  private def handleRecordsForPartition(
+    p: Partition, ap: AssignedPartition,
+    records: Iterable[ConsumerRecord[MarkerKey, MarkerValue]],
+    now: Timestamp): Unit = {
+
+    records.foreach { record =>
+      ap.markersQueue.handleMarker(record.offset(), record.key(), record.value(), record.timestamp())
+    }
+
+    ap.updateLatestSeenMarkerTimestamp(records.maxBy(_.timestamp()).timestamp(), now)
+
+    ap.markersQueue.smallestMarkerOffset().foreach { offset =>
+      commitMarkerOffsetsActor ! CommitOffset(p, offset)
+    }
+  }
+
+  private def sendRedeliverMarkers(ap: AssignedPartition, t: Timestamp): Unit = {
+    val toRedeliver = ap.markersQueue.markersToRedeliver(t)
+    if (toRedeliver.nonEmpty) {
+      ap.redeliverActor ! RedeliverMarkers(toRedeliver)
+    }
+  }
+
+  private case class AssignedPartition(
+    markersQueue: MarkersQueue, redeliverActor: ActorRef,
     var latestSeenMarkerTimestamp: Option[Timestamp], var latestMarkerSeenAt: Option[Timestamp]) {
 
-    def updateLatestSeenMarkerTimestamp(markerTimestmap: Timestamp, now: Timestamp): Unit = {
-      latestSeenMarkerTimestamp = Some(markerTimestmap)
+    def updateLatestSeenMarkerTimestamp(markerTimestamp: Timestamp, now: Timestamp): Unit = {
+      latestSeenMarkerTimestamp = Some(markerTimestamp)
       latestMarkerSeenAt = Some(now)
     }
 
@@ -146,13 +165,6 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
           Some(now)
         }
       }
-    }
-  }
-
-  private def sendRedeliverMarkers(ap: AssignedPartition, t: Timestamp): Unit = {
-    val toRedeliver = ap.markersQueue.markersToRedeliver(t)
-    if (toRedeliver.nonEmpty) {
-      ap.redeliverActor ! RedeliverMarkers(toRedeliver)
     }
   }
 }
