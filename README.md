@@ -1,5 +1,7 @@
 # Kafka Message Queue
 
+[![Join the chat at https://gitter.im/softwaremill/kmq](https://badges.gitter.im/softwaremill/kmq.svg)](https://gitter.im/softwaremill/kmq?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 Using `kmq` you can acknowledge processing of individual messages in Kafka, and have unacknowledged messages 
 re-delivered after a timeout. 
 
