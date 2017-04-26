@@ -27,7 +27,14 @@ lazy val commonSettings = Seq(
     <scm>
       <url>git@github.com:softwaremill/kmq.git</url>
       <connection>scm:git:git@github.com:softwaremill/kmq.git</connection>
-    </scm>,
+    </scm>
+      <developers>
+        <developer>
+          <id>adamw</id>
+          <name>Adam Warski</name>
+          <url>http://www.warski.org</url>
+        </developer>
+      </developers>,
   licenses := ("Apache2", new java.net.URL("http://www.apache.org/licenses/LICENSE-2.0.txt")) :: Nil,
   homepage := Some(new java.net.URL("https://www.softwaremill.com/open-source"))
 )
@@ -52,6 +59,7 @@ lazy val core = (project in file("core"))
 lazy val exampleJava = (project in file("example-java"))
   .settings(commonSettings)
   .settings(
+    publishArtifact := false,
     libraryDependencies ++= List(
       "org.apache.kafka" %% "kafka" % "0.10.2.0",
       "net.manub" %% "scalatest-embedded-kafka" % "0.13.0"
@@ -61,6 +69,7 @@ lazy val exampleJava = (project in file("example-java"))
 lazy val exampleScala = (project in file("example-scala"))
   .settings(commonSettings)
   .settings(
+    publishArtifact := false,
     libraryDependencies ++= List(
       "com.typesafe.akka" %% "akka-stream-kafka" % "0.15",
       "ch.qos.logback" % "logback-classic" % "1.2.3"
