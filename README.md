@@ -28,7 +28,23 @@ An application using `kmq` should consist of the following components:
 * a number of `RedeliveryTracker`s. This components consumes the `marker` topic and redelivers messages if appropriate. 
 Multiple copies should be started in a cluster for fail-over. Uses automatic partition assignment.
 * components which send data to the `queue` topic to be processed
-* queue clients, either custom or using the `KmqClient`
+* queue clients, either custom or using the `KmqClient`     
+
+# Maven/SBT dependency
+
+SBT:
+
+    "com.softwaremill.kmq" %% "core" % "0.1"
+
+Maven:
+
+    <dependency>
+        <groupId>com.softwaremill.kmq</groupId>
+        <artifactId>core_2.12</artifactId>
+        <version>0.1</version>
+    </dependency>
+
+(Use `core_2.11` if you are using other components depending on Scala 2.11.)
 
 # Client flow
 
@@ -69,4 +85,6 @@ the current system time is used, as we assume that all markers from the partitio
 
 # Project status
 
-No releases (yet?). The code is of proof-of-concept quality.
+## Version 0.1 (24 Apr 2017)
+
+* initial release
