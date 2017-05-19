@@ -11,6 +11,8 @@ import org.apache.kafka.common.serialization.Deserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -30,7 +32,7 @@ import java.util.concurrent.Future;
  * Note that `processed()` can be called at any time for any message and out-of-order. If processing fails, it shuoldn't
  * be called at all.
  */
-public class KmqClient<K, V> {
+public class KmqClient<K, V> implements Closeable {
     private final static Logger LOG = LoggerFactory.getLogger(KmqClient.class);
 
     private final KmqConfig config;
@@ -96,5 +98,11 @@ public class KmqClient<K, V> {
         return markerProducer.send(new ProducerRecord<>(config.getMarkerTopic(),
                 MarkerKey.fromRecord(record),
                 EndMarker.INSTANCE));
+    }
+
+    @Override
+    public void close() throws IOException {
+        msgConsumer.close();
+        markerProducer.close();
     }
 }
