@@ -18,8 +18,8 @@ object RedeliveryActors extends StrictLogging {
 
     logger.info("Started redelivery actors")
 
-    () => {
-      Await.result(system.terminate(), 1.minute)
+    new Closeable {
+      override def close(): Unit = Await.result(system.terminate(), 1.minute)
     }
   }
 }
