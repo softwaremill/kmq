@@ -16,7 +16,6 @@ import scala.collection.Map$;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.time.Clock;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,8 +27,6 @@ public class EmbeddedExample {
 
     private static final int PARTITIONS = 1;
     private static final int TOTAL_MSGS = 100;
-
-    private static final Clock clock = Clock.systemDefaultZone();
 
     public static void main(String[] args) throws InterruptedException, IOException {
         UncaughtExceptionHandling.setup();
