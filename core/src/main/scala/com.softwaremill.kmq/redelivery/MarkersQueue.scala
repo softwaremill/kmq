@@ -6,8 +6,8 @@ import scala.collection.mutable
 
 class MarkersQueue(disableRedeliveryBefore: Offset) {
   private val markersInProgress = mutable.Set[MarkerKey]()
-  private val markersByTimestamp = new mutable.PriorityQueue[AttributedMarkerKey[Timestamp]]()(byAttributeOrdering)
-  private val markersByOffset = new mutable.PriorityQueue[AttributedMarkerKey[Offset]]()(byAttributeOrdering)
+  private val markersByTimestamp = new mutable.PriorityQueue[AttributedMarkerKey[Timestamp]]()(bySmallestAttributeOrdering)
+  private val markersByOffset = new mutable.PriorityQueue[AttributedMarkerKey[Offset]]()(bySmallestAttributeOrdering)
   private var redeliveryEnabled = false
 
   def handleMarker(markerOffset: Offset, k: MarkerKey, v: MarkerValue, t: Timestamp) {
@@ -73,9 +73,9 @@ class MarkersQueue(disableRedeliveryBefore: Offset) {
 
   private case class AttributedMarkerKey[T](key: MarkerKey, attr: T)
 
-  private def byAttributeOrdering[T: Ordering]: Ordering[AttributedMarkerKey[T]] = new Ordering[AttributedMarkerKey[T]] {
+  private def bySmallestAttributeOrdering[T: Ordering]: Ordering[AttributedMarkerKey[T]] = new Ordering[AttributedMarkerKey[T]] {
     override def compare(x: AttributedMarkerKey[T], y: AttributedMarkerKey[T]): Int = {
-      implicitly[Ordering[T]].compare(x.attr, y.attr)
+      - implicitly[Ordering[T]].compare(x.attr, y.attr)
     }
   }
 }

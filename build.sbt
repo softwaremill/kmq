@@ -5,7 +5,7 @@ name := "kmq"
 
 lazy val commonSettings = Seq(
   organization := "com.softwaremill.kmq",
-  version := "0.1",
+  version := "0.1.1-SNAPSHOT",
   scalaVersion := "2.12.2",
   crossScalaVersions := List(scalaVersion.value, "2.11.11"),
 
@@ -52,7 +52,8 @@ lazy val core = (project in file("core"))
     libraryDependencies ++= List(
       "org.apache.kafka" % "kafka-clients" % "0.10.2.0",
       "com.typesafe.akka" %% "akka-actor" % "2.5.0",
-      "com.typesafe.scala-logging" %% "scala-logging" % "3.5.0"
+      "com.typesafe.scala-logging" %% "scala-logging" % "3.5.0",
+      "org.scalatest" %% "scalatest" % "3.0.3" % "test"
     )
   )
 
