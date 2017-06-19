@@ -30,9 +30,16 @@ class RedeliverActor(p: Partition, redeliverer: Redeliverer) extends Actor with 
       toRedeliver ++= m
 
     case DoRedeliver =>
+      val hadRedeliveries = toRedeliver.nonEmpty
       try {
         redeliverer.redeliver(toRedeliver)
         toRedeliver = Nil
-      } finally context.system.scheduler.scheduleOnce(1.second, self, DoRedeliver)
+      } finally {
+        if (hadRedeliveries) {
+          self ! DoRedeliver
+        } else {
+          context.system.scheduler.scheduleOnce(1.second, self, DoRedeliver)
+        }
+      }
   }
 }
