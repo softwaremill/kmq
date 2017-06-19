@@ -61,9 +61,11 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
   }
 
   private def partitionAssigned(p: Partition, endOffset: Offset): Unit = {
+    val redeliverActorProps =  Props(
+      new RedeliverActor(p, new RetryingRedeliverer(new DefaultRedeliverer(p, producer, config, clients))))
+      .withDispatcher("kmq.redeliver-dispatcher")
     val redeliverActor = context.actorOf(
-      Props(new RedeliverActor(p,
-        new RetryingRedeliverer(new DefaultRedeliverer(p, producer, config, clients)))),
+      redeliverActorProps,
       s"redeliver-actor-$p-$redeliverActorNameCounter")
     redeliverActor ! DoRedeliver
 
