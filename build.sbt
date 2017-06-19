@@ -5,7 +5,7 @@ name := "kmq"
 
 lazy val commonSettings = Seq(
   organization := "com.softwaremill.kmq",
-  version := "0.1.1-SNAPSHOT",
+  version := "0.2",
   scalaVersion := "2.12.2",
   crossScalaVersions := List(scalaVersion.value, "2.11.11"),
 
