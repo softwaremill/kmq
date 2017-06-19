@@ -6,11 +6,13 @@ import java.util.concurrent.{Future, TimeUnit}
 
 import com.softwaremill.kmq.{EndMarker, KafkaClients, KmqConfig, MarkerKey}
 import com.typesafe.scalalogging.StrictLogging
+import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 
 import scala.annotation.tailrec
+import scala.collection.JavaConverters._
 
 trait Redeliverer {
   def redeliver(toRedeliver: List[MarkerKey]): Unit
@@ -22,15 +24,14 @@ class DefaultRedeliverer(
   config: KmqConfig, clients: KafkaClients)
   extends Redeliverer with StrictLogging {
 
-  private val PollTimeout = Duration.ofSeconds(100).toMillis
   private val SendTimeoutSeconds = 60L
 
   private val tp = new TopicPartition(config.getMsgTopic, partition)
 
-  private val consumer = {
+  private val reader = {
     val c = clients.createConsumer(null, classOf[ByteArrayDeserializer], classOf[ByteArrayDeserializer])
     c.assign(Collections.singleton(tp))
-    c
+    new SingleOffsetReader(tp, c)
   }
 
   def redeliver(toRedeliver: List[MarkerKey]) {
@@ -50,14 +51,13 @@ class DefaultRedeliverer(
         s"Got marker key for partition ${marker.getPartition}, while the assigned partition is $partition!")
     }
 
-    consumer.seek(tp, marker.getMessageOffset)
-    val pollResults = consumer.poll(PollTimeout).records(tp)
-    if (pollResults.isEmpty) {
-      throw new IllegalStateException(s"Cannot redeliver $marker from topic ${config.getMsgTopic}, due to data fetch timeout")
-    } else {
-      val toSend = pollResults.get(0)
-      logger.info(s"Redelivering message from ${config.getMsgTopic}, partition ${marker.getPartition}, offset ${marker.getMessageOffset}")
-      producer.send(new ProducerRecord(toSend.topic, toSend.partition, toSend.key, toSend.value))
+    reader.read(marker.getMessageOffset) match {
+      case None =>
+        throw new IllegalStateException(s"Cannot redeliver $marker from topic ${config.getMsgTopic}, due to data fetch timeout")
+
+      case Some(toSend) =>
+        logger.info(s"Redelivering message from ${config.getMsgTopic}, partition ${marker.getPartition}, offset ${marker.getMessageOffset}")
+        producer.send(new ProducerRecord(toSend.topic, toSend.partition, toSend.key, toSend.value))
     }
   }
 
@@ -68,7 +68,7 @@ class DefaultRedeliverer(
 
   private case class RedeliveredMarker(marker: MarkerKey, sendResult: Future[RecordMetadata])
 
-  def close(): Unit = consumer.close()
+  def close(): Unit = reader.close()
 }
 
 class RetryingRedeliverer(delegate: Redeliverer) extends Redeliverer with StrictLogging {
@@ -76,7 +76,7 @@ class RetryingRedeliverer(delegate: Redeliverer) extends Redeliverer with Strict
   private val MaxRetries = 16
 
   override def redeliver(toRedeliver: List[MarkerKey]): Unit = {
-    tryRedeliver(toRedeliver.grouped(MaxBatch).toList.map(RedeliveryBatch(_, 1)))
+    tryRedeliver(toRedeliver.sortBy(_.getMessageOffset).grouped(MaxBatch).toList.map(RedeliveryBatch(_, 1)))
   }
 
   @tailrec
@@ -103,4 +103,34 @@ class RetryingRedeliverer(delegate: Redeliverer) extends Redeliverer with Strict
   override def close(): Unit = delegate.close()
 
   private case class RedeliveryBatch(markers: List[MarkerKey], retry: Int)
+}
+
+private class SingleOffsetReader(tp: TopicPartition, consumer: KafkaConsumer[Array[Byte], Array[Byte]]) {
+  private val PollTimeout = Duration.ofSeconds(100).toMillis
+
+  private var cachedRecords: List[ConsumerRecord[Array[Byte], Array[Byte]]] = Nil
+
+  def read(offset: Offset): Option[ConsumerRecord[Array[Byte], Array[Byte]]] = {
+    findInCache(offset)
+      .orElse(seekAndRead(offset))
+  }
+
+  private def findInCache(offset: Offset) = {
+    cachedRecords.find(_.offset() == offset)
+  }
+
+  private def seekAndRead(offset: Offset) = {
+    consumer.seek(tp, offset)
+    val pollResults = consumer.poll(PollTimeout)
+    updateCache(pollResults)
+    cachedRecords.headOption
+  }
+
+  private def updateCache(records: ConsumerRecords[Array[Byte], Array[Byte]]): Unit = {
+    cachedRecords = records.records(tp).asScala.toList
+  }
+
+  def close(): Unit = {
+    consumer.close()
+  }
 }
