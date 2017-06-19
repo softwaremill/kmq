@@ -35,14 +35,14 @@ Multiple copies should be started in a cluster for fail-over. Uses automatic par
 
 SBT:
 
-    "com.softwaremill.kmq" %% "core" % "0.1"
+    "com.softwaremill.kmq" %% "core" % "0.2"
 
 Maven:
 
     <dependency>
         <groupId>com.softwaremill.kmq</groupId>
         <artifactId>core_2.12</artifactId>
-        <version>0.1</version>
+        <version>0.2</version>
     </dependency>
 
 (Use `core_2.11` if you are using other components depending on Scala 2.11.)
@@ -85,6 +85,11 @@ partition. What "recently" means depends on the `useNowForRedeliverDespiteNoMark
 the current system time is used, as we assume that all markers from the partition have been processed.
 
 # Project status
+
+## Version 0.2 (19 Jun 2017)
+
+* redelivery component optimizations
+* bug fixes
 
 ## Version 0.1 (24 Apr 2017)
 
