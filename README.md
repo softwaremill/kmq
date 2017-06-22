@@ -14,7 +14,8 @@ model.
 
 # How does this work?
 
-For a more in-depth overview see the blog: [Using Kafka as a message queue](https://softwaremill.com/using-kafka-as-a-message-queue/)
+For a more in-depth overview see the blog: [Using Kafka as a message queue](https://softwaremill.com/using-kafka-as-a-message-queue/),
+and for performance benchmarks: [Kafka with selective acknowledgments (kmq) performance & latency benchmark](https://softwaremill.com/kafka-with-selective-acknowledgments-performance/)
 
 The acknowledgment mechanism uses a `marker` topic, which should have the same number of partitions as the "main"
 data topic (called the `queue` topic). The marker topic is used to track which messages have been processed, by 
