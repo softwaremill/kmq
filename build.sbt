@@ -6,7 +6,7 @@ name := "kmq"
 lazy val commonSettings = Seq(
   organization := "com.softwaremill.kmq",
   version := "0.2",
-  scalaVersion := "2.12.2",
+  scalaVersion := "2.12.3",
   crossScalaVersions := List(scalaVersion.value, "2.11.11"),
 
   scalacOptions ++= Seq("-unchecked", "-deprecation"),
@@ -50,10 +50,10 @@ lazy val core = (project in file("core"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= List(
-      "org.apache.kafka" % "kafka-clients" % "0.10.2.0",
-      "com.typesafe.akka" %% "akka-actor" % "2.5.0",
-      "com.typesafe.scala-logging" %% "scala-logging" % "3.5.0",
-      "org.scalatest" %% "scalatest" % "3.0.3" % "test"
+      "org.apache.kafka" % "kafka-clients" % "0.11.0.0",
+      "com.typesafe.akka" %% "akka-actor" % "2.5.4",
+      "com.typesafe.scala-logging" %% "scala-logging" % "3.7.2",
+      "org.scalatest" %% "scalatest" % "3.0.4" % "test"
     )
   )
 
@@ -62,8 +62,8 @@ lazy val exampleJava = (project in file("example-java"))
   .settings(
     publishArtifact := false,
     libraryDependencies ++= List(
-      "org.apache.kafka" %% "kafka" % "0.10.2.0",
-      "net.manub" %% "scalatest-embedded-kafka" % "0.13.0"
+      "org.apache.kafka" %% "kafka" % "0.11.0.0",
+      "net.manub" %% "scalatest-embedded-kafka" % "0.15.1"
     )
   ) dependsOn(core)
 
@@ -72,7 +72,7 @@ lazy val exampleScala = (project in file("example-scala"))
   .settings(
     publishArtifact := false,
     libraryDependencies ++= List(
-      "com.typesafe.akka" %% "akka-stream-kafka" % "0.15",
+      "com.typesafe.akka" %% "akka-stream-kafka" % "0.17",
       "ch.qos.logback" % "logback-classic" % "1.2.3"
     )
   ) dependsOn(core)
