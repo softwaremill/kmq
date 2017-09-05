@@ -87,6 +87,10 @@ the current system time is used, as we assume that all markers from the partitio
 
 # Project status
 
+## Version 0.2.1 (5 Sep 2017)
+
+* Kafka & dependency updates
+
 ## Version 0.2 (19 Jun 2017)
 
 * redelivery component optimizations
