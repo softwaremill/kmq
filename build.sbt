@@ -6,7 +6,7 @@ name := "kmq"
 lazy val commonSettings = Seq(
   organization := "com.softwaremill.kmq",
   version := "0.2.1",
-  scalaVersion := "2.12.3",
+  scalaVersion := "2.12.4",
   crossScalaVersions := List(scalaVersion.value, "2.11.11"),
 
   scalacOptions ++= Seq("-unchecked", "-deprecation"),
@@ -50,8 +50,8 @@ lazy val core = (project in file("core"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= List(
-      "org.apache.kafka" % "kafka-clients" % "0.11.0.0",
-      "com.typesafe.akka" %% "akka-actor" % "2.5.4",
+      "org.apache.kafka" % "kafka-clients" % "1.0.0",
+      "com.typesafe.akka" %% "akka-actor" % "2.5.6",
       "com.typesafe.scala-logging" %% "scala-logging" % "3.7.2",
       "org.scalatest" %% "scalatest" % "3.0.4" % "test"
     )
@@ -62,8 +62,8 @@ lazy val exampleJava = (project in file("example-java"))
   .settings(
     publishArtifact := false,
     libraryDependencies ++= List(
-      "org.apache.kafka" %% "kafka" % "0.11.0.0",
-      "net.manub" %% "scalatest-embedded-kafka" % "0.15.1"
+      "org.apache.kafka" %% "kafka" % "1.0.0",
+      "net.manub" %% "scalatest-embedded-kafka" % "0.16.0"
     )
   ) dependsOn(core)
 
