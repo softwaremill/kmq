@@ -4,6 +4,7 @@ import com.softwaremill.kmq.*;
 import com.softwaremill.kmq.example.UncaughtExceptionHandling;
 import net.manub.embeddedkafka.EmbeddedKafka$;
 import net.manub.embeddedkafka.EmbeddedKafkaConfig;
+import net.manub.embeddedkafka.EmbeddedKafkaConfig$;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -28,7 +29,7 @@ public class EmbeddedExample {
     private static final int PARTITIONS = 1;
     private static final int TOTAL_MSGS = 100;
 
-    public static void main(String[] args) throws InterruptedException, IOException {
+    public static void main(String[] args) throws IOException {
         UncaughtExceptionHandling.setup();
         
         KmqConfig kmqConfig = new KmqConfig("queue", "markers", "kmq_client",
