@@ -34,7 +34,7 @@ public class EmbeddedExample {
         KmqConfig kmqConfig = new KmqConfig("queue", "markers", "kmq_client",
                 "kmq_redelivery", Duration.ofSeconds(10).toMillis(), 1000);
 
-        EmbeddedKafkaConfig kafkaConfig = EmbeddedKafkaConfig.defaultConfig();
+        EmbeddedKafkaConfig kafkaConfig = EmbeddedKafkaConfig$.MODULE$.defaultConfig();
         KafkaClients clients = new KafkaClients("localhost:" + kafkaConfig.kafkaPort());
 
         EmbeddedKafka$.MODULE$.start(kafkaConfig);
