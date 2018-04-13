@@ -12,7 +12,7 @@ import org.apache.kafka.common.serialization.ByteArraySerializer
 
 import scala.collection.JavaConverters._
 
-class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Actor with StrictLogging {
+class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig, extraConfig: Option[java.util.Map[String, Object]] = None) extends Actor with StrictLogging {
 
   private val OneSecond = 1000L
 
@@ -26,11 +26,22 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
   private var commitMarkerOffsetsActor: ActorRef = _
 
   override def preStart(): Unit = {
-    markerConsumer = clients.createConsumer(config.getRedeliveryConsumerGroupId,
-      classOf[MarkerKey.MarkerKeyDeserializer],
-      classOf[MarkerValue.MarkerValueDeserializer])
-
-    producer = clients.createProducer(classOf[ByteArraySerializer], classOf[ByteArraySerializer])
+    markerConsumer = extraConfig match {
+      // extraConfig is not empty
+      case Some(cfg) => clients.createConsumer(config.getRedeliveryConsumerGroupId,
+        classOf[MarkerKey.MarkerKeyDeserializer],
+        classOf[MarkerValue.MarkerValueDeserializer], cfg)
+      // extraConfig is empty
+      case None => clients.createConsumer(config.getRedeliveryConsumerGroupId,
+        classOf[MarkerKey.MarkerKeyDeserializer],
+        classOf[MarkerValue.MarkerValueDeserializer])
+    }
+    producer = extraConfig match {
+      // extraConfig is not empty
+      case Some(cfg) => clients.createProducer(classOf[ByteArraySerializer], classOf[ByteArraySerializer], cfg)
+      // extraConfig is empty
+      case None => clients.createProducer(classOf[ByteArraySerializer], classOf[ByteArraySerializer])
+    }
 
     setupMarkerConsumer()
     setupOffsetCommitting()
@@ -62,7 +73,7 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
 
   private def partitionAssigned(p: Partition, endOffset: Offset): Unit = {
     val redeliverActorProps =  Props(
-      new RedeliverActor(p, new RetryingRedeliverer(new DefaultRedeliverer(p, producer, config, clients))))
+      new RedeliverActor(p, new RetryingRedeliverer(new DefaultRedeliverer(p, producer, config, clients, extraConfig))))
       .withDispatcher("kmq.redeliver-dispatcher")
     val redeliverActor = context.actorOf(
       redeliverActorProps,
@@ -75,7 +86,7 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
 
   private def setupOffsetCommitting(): Unit = {
     commitMarkerOffsetsActor = context.actorOf(
-      Props(new CommitMarkerOffsetsActor(config.getMarkerTopic, clients)),
+      Props(new CommitMarkerOffsetsActor(config.getMarkerTopic, clients, extraConfig)),
       "commit-marker-offsets")
 
     commitMarkerOffsetsActor ! DoCommit
