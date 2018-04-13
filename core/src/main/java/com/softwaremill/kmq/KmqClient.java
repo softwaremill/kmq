@@ -10,12 +10,11 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Option;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.Future;
 
 /**
@@ -50,10 +49,31 @@ public class KmqClient<K, V> implements Closeable {
         this.msgPollTimeout = msgPollTimeout;
 
         this.msgConsumer = clients.createConsumer(config.getMsgConsumerGroupId(), keyDeserializer, valueDeserializer);
-        // Using the custom partitioner, each offset-partition will contain markers only from a single queue-partition.
         this.markerProducer = clients.createProducer(
-                MarkerKey.MarkerKeySerializer.class, MarkerValue.MarkerValueSerializer.class,
-                Collections.singletonMap(ProducerConfig.PARTITIONER_CLASS_CONFIG, ParititionFromMarkerKey.class));
+            MarkerKey.MarkerKeySerializer.class, MarkerValue.MarkerValueSerializer.class,
+            Collections.singletonMap(ProducerConfig.PARTITIONER_CLASS_CONFIG, ParititionFromMarkerKey.class));
+
+        LOG.info(String.format("Subscribing to topic: %s, using group id: %s", config.getMsgTopic(), config.getMsgConsumerGroupId()));
+        msgConsumer.subscribe(Collections.singletonList(config.getMsgTopic()));
+    }
+
+    public KmqClient(KmqConfig config, KafkaClients clients,
+                     Class<? extends Deserializer<K>> keyDeserializer,
+                     Class<? extends Deserializer<V>> valueDeserializer,
+                     long msgPollTimeout, Map<String, Object> extraConfig) {
+
+        this.config = config;
+        this.msgPollTimeout = msgPollTimeout;
+
+        // Using the custom partitioner, each offset-partition will contain markers only from a single queue-partition.
+        // Adding the PARTITIONER_CLASS_CONFIG in extraConfig map, if extraConfig is not empty
+      this.msgConsumer = clients.createConsumer(config.getMsgConsumerGroupId(), keyDeserializer, valueDeserializer, extraConfig);
+      extraConfig.put(ProducerConfig.PARTITIONER_CLASS_CONFIG, ParititionFromMarkerKey.class);
+      this.markerProducer = clients.createProducer(
+          MarkerKey.MarkerKeySerializer.class, MarkerValue.MarkerValueSerializer.class,
+          extraConfig);
+
+
 
         LOG.info(String.format("Subscribing to topic: %s, using group id: %s", config.getMsgTopic(), config.getMsgConsumerGroupId()));
         msgConsumer.subscribe(Collections.singletonList(config.getMsgTopic()));
