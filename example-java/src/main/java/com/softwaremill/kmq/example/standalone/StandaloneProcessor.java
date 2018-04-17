@@ -3,47 +3,26 @@ package com.softwaremill.kmq.example.standalone;
 import com.softwaremill.kmq.KmqClient;
 import com.softwaremill.kmq.example.UncaughtExceptionHandling;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.common.serialization.ByteBufferDeserializer;
-import org.apache.kafka.common.config.SslConfigs;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.time.Clock;
 import java.util.Map;
-import java.util.HashMap;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.softwaremill.kmq.example.standalone.StandaloneConfig.*;
+import static com.softwaremill.kmq.example.standalone.StandaloneConfig.KAFKA_CLIENTS;
+import static com.softwaremill.kmq.example.standalone.StandaloneConfig.KMQ_CONFIG;
 
 class StandaloneProcessor {
     private final static Logger LOG = LoggerFactory.getLogger(StandaloneProcessor.class);
 
-    public static void main(String[] args) throws InterruptedException, IOException {
+    public static void main(String[] args) {
         UncaughtExceptionHandling.setup();
-        
-        /* EXAMPLE with extraConfig : SSL Encryption & SSL Authentication
-        Map extraConfig = new HashMap();
-        //configure the following three settings for SSL Encryption
-        extraConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL");
-        extraConfig.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, "/directory/kafka.client.truststore.jks");
-        extraConfig.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG,  "test1234");
-
-        // configure the following three settings for SSL Authentication
-        extraConfig.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, "/directory/kafka.client.keystore.jks");
-        extraConfig.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, "test1234");
-        extraConfig.put(SslConfigs.SSL_KEY_PASSWORD_CONFIG, "test1234");
-        
-        KmqClient<ByteBuffer, ByteBuffer> kmqClient = new KmqClient<>(KMQ_CONFIG, KAFKA_CLIENTS,
-                ByteBufferDeserializer.class, ByteBufferDeserializer.class, 100, extraConfig);
-        */
 
         KmqClient<ByteBuffer, ByteBuffer> kmqClient = new KmqClient<>(KMQ_CONFIG, KAFKA_CLIENTS,
                 ByteBufferDeserializer.class, ByteBufferDeserializer.class, 100);

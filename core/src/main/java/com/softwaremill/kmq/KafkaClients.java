@@ -12,9 +12,18 @@ import java.util.Properties;
 
 public class KafkaClients {
     private final String bootstrapServers;
+    private final Map<String, Object> extraGlobalConfig;
 
     public KafkaClients(String bootstrapServers) {
+        this(bootstrapServers, Collections.emptyMap());
+    }
+
+    /**
+     * @param extraGlobalConfig Extra Kafka parameter configuration, e.g. SSL
+     */
+    public KafkaClients(String bootstrapServers, Map<String, Object> extraGlobalConfig) {
         this.bootstrapServers = bootstrapServers;
+        this.extraGlobalConfig = extraGlobalConfig;
     }
 
     public <K, V> KafkaProducer<K, V> createProducer(Class<? extends Serializer<K>> keySerializer,
@@ -35,6 +44,9 @@ public class KafkaClients {
         props.put("key.serializer", keySerializer.getName());
         props.put("value.serializer", valueSerializer.getName());
         for (Map.Entry<String, Object> extraCfgEntry : extraConfig.entrySet()) {
+            props.put(extraCfgEntry.getKey(), extraCfgEntry.getValue());
+        }
+        for (Map.Entry<String, Object> extraCfgEntry : extraGlobalConfig.entrySet()) {
             props.put(extraCfgEntry.getKey(), extraCfgEntry.getValue());
         }
 
@@ -60,8 +72,10 @@ public class KafkaClients {
         if (groupId != null) {
             props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         }
-        // extraConfig : configure the kafka parameters (ex: ssl, ...)
         for (Map.Entry<String, Object> extraCfgEntry : extraConfig.entrySet()) {
+            props.put(extraCfgEntry.getKey(), extraCfgEntry.getValue());
+        }
+        for (Map.Entry<String, Object> extraCfgEntry : extraGlobalConfig.entrySet()) {
             props.put(extraCfgEntry.getKey(), extraCfgEntry.getValue());
         }
 

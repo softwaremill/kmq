@@ -14,10 +14,6 @@ import java.util.Map;
  */
 public class RedeliveryTracker {
     public static Closeable start(KafkaClients clients, KmqConfig config) {
-        return start(clients, config, Collections.emptyMap());
-    }
-
-    public static Closeable start(KafkaClients clients, KmqConfig config, Map<String, Object> extraConfig) {
-        return RedeliveryActors.start(clients, config, extraConfig);
+        return RedeliveryActors.start(clients, config);
     }
 }
