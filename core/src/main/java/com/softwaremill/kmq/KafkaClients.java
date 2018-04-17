@@ -21,7 +21,7 @@ public class KafkaClients {
         return createProducer(keySerializer, valueSerializer, Collections.emptyMap());
     }
 
-    public <K, V> KafkaProducer<K, V> createProducer(Class<? extends Serializer<K>> keySerializer, Class<? extends Serializer<V>> valueSerializer,
+    public <K, V> KafkaProducer<K, V>  createProducer(Class<? extends Serializer<K>> keySerializer, Class<? extends Serializer<V>> valueSerializer,
                                                             Map<String, Object> extraConfig) {
         Properties props = new Properties();
         props.put("bootstrap.servers", bootstrapServers);
@@ -39,9 +39,13 @@ public class KafkaClients {
         return new KafkaProducer<>(props);
     }
 
+  public <K, V> KafkaConsumer<K, V> createConsumer(String groupId, Class<? extends Deserializer<K>> keyDeserializer, Class<? extends Deserializer<V>> valueDeserializer) {
+      return createConsumer(groupId, keyDeserializer, valueDeserializer, Collections.emptyMap());
+  }
+
     public <K, V> KafkaConsumer<K, V> createConsumer(String groupId,
                                                      Class<? extends Deserializer<K>> keyDeserializer,
-                                                     Class<? extends Deserializer<V>> valueDeserializer) {
+                                                     Class<? extends Deserializer<V>> valueDeserializer, Map<String, Object> extraConfig) {
         Properties props = new Properties();
         props.put("bootstrap.servers", bootstrapServers);
         props.put("enable.auto.commit", "false");
@@ -50,6 +54,10 @@ public class KafkaClients {
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         if (groupId != null) {
             props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        }
+        // extraConfig : configure the kafka parameters (ex: ssl, ...)
+        for (Map.Entry<String, Object> extraCfgEntry : extraConfig.entrySet()) {
+          props.put(extraCfgEntry.getKey(), extraCfgEntry.getValue());
         }
 
         return new KafkaConsumer<>(props);
