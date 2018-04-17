@@ -5,6 +5,7 @@ import com.softwaremill.kmq.redelivery.RedeliveryActors;
 import scala.Option;
 
 import java.io.Closeable;
+import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -13,10 +14,10 @@ import java.util.Map;
  */
 public class RedeliveryTracker {
     public static Closeable start(KafkaClients clients, KmqConfig config) {
-        return RedeliveryActors.start(clients, config);
+        return start(clients, config, Collections.emptyMap());
     }
 
-    public static Closeable start(KafkaClients clients, KmqConfig config, Option<Map<String, Object>> extraConfig) {
+    public static Closeable start(KafkaClients clients, KmqConfig config, Map<String, Object> extraConfig) {
         return RedeliveryActors.start(clients, config, extraConfig);
     }
 }

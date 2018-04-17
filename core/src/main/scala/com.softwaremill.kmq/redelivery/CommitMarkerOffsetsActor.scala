@@ -10,14 +10,9 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
-class CommitMarkerOffsetsActor(markerTopic: String, clients: KafkaClients, extraConfig: Option[java.util.Map[String, Object]] = None) extends Actor with StrictLogging {
+class CommitMarkerOffsetsActor(markerTopic: String, clients: KafkaClients, extraConfig: java.util.Map[String, Object]) extends Actor with StrictLogging {
 
-  private val consumer = extraConfig match {
-    // extraConfig is not empty
-    case Some(cfg) => clients.createConsumer(null, classOf[ByteArrayDeserializer], classOf[ByteArrayDeserializer], cfg
-    // extraConfig is empty
-    case None => clients.createConsumer(null, classOf[ByteArrayDeserializer], classOf[ByteArrayDeserializer])
-  }
+  private val consumer = clients.createConsumer(null, classOf[ByteArrayDeserializer], classOf[ByteArrayDeserializer], extraConfig)
 
   private var toCommit: Map[Partition, Offset] = Map()
 

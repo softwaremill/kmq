@@ -21,7 +21,7 @@ trait Redeliverer {
 
 class DefaultRedeliverer(
   partition: Partition, producer: KafkaProducer[Array[Byte], Array[Byte]],
-  config: KmqConfig, clients: KafkaClients, extraConfig: Option[java.util.Map[String, Object]] = None)
+  config: KmqConfig, clients: KafkaClients, extraConfig: java.util.Map[String, Object])
   extends Redeliverer with StrictLogging {
 
   private val SendTimeoutSeconds = 60L
@@ -29,12 +29,7 @@ class DefaultRedeliverer(
   private val tp = new TopicPartition(config.getMsgTopic, partition)
 
   private val reader = {
-    val c = extraConfig match {
-      // extraConfig is not empty
-      case Some(cfg) => clients.createConsumer(null, classOf[ByteArrayDeserializer], classOf[ByteArrayDeserializer], cfg)
-      // extraConfig is empty
-      case None => clients.createConsumer(null, classOf[ByteArrayDeserializer], classOf[ByteArrayDeserializer])
-    }
+    val c = clients.createConsumer(null, classOf[ByteArrayDeserializer], classOf[ByteArrayDeserializer], extraConfig)
     c.assign(Collections.singleton(tp))
     new SingleOffsetReader(tp, c)
   }

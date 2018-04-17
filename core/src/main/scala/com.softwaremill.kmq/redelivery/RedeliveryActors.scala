@@ -1,6 +1,7 @@
 package com.softwaremill.kmq.redelivery
 
 import java.io.Closeable
+import java.util.Collections
 
 import akka.actor.{ActorSystem, Props}
 import com.softwaremill.kmq.{KafkaClients, KmqConfig}
@@ -8,7 +9,6 @@ import com.typesafe.scalalogging.StrictLogging
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
-
 import scala.collection.JavaConverters._
 
 object RedeliveryActors extends StrictLogging {
@@ -16,7 +16,7 @@ object RedeliveryActors extends StrictLogging {
     start(clients, config)
   }
 
-  def start(clients: KafkaClients, config: KmqConfig, extraConfig: Option[java.util.Map[String, Object]] = None): Closeable = {
+  def start(clients: KafkaClients, config: KmqConfig, extraConfig: java.util.Map[String, Object] = Collections.emptyMap()): Closeable = {
     val system = ActorSystem("kmq-redelivery")
 
     val consumeMakersActor = system.actorOf(Props(new ConsumeMarkersActor(clients, config, extraConfig)), "consume-markers-actor")

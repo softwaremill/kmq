@@ -17,12 +17,14 @@ public class KafkaClients {
         this.bootstrapServers = bootstrapServers;
     }
 
-    public <K, V> KafkaProducer<K, V> createProducer(Class<? extends Serializer<K>> keySerializer, Class<? extends Serializer<V>> valueSerializer) {
+    public <K, V> KafkaProducer<K, V> createProducer(Class<? extends Serializer<K>> keySerializer,
+                                                     Class<? extends Serializer<V>> valueSerializer) {
         return createProducer(keySerializer, valueSerializer, Collections.emptyMap());
     }
 
-    public <K, V> KafkaProducer<K, V>  createProducer(Class<? extends Serializer<K>> keySerializer, Class<? extends Serializer<V>> valueSerializer,
-                                                            Map<String, Object> extraConfig) {
+    public <K, V> KafkaProducer<K, V>  createProducer(Class<? extends Serializer<K>> keySerializer,
+                                                      Class<? extends Serializer<V>> valueSerializer,
+                                                      Map<String, Object> extraConfig) {
         Properties props = new Properties();
         props.put("bootstrap.servers", bootstrapServers);
         props.put("acks", "all");
@@ -39,13 +41,16 @@ public class KafkaClients {
         return new KafkaProducer<>(props);
     }
 
-  public <K, V> KafkaConsumer<K, V> createConsumer(String groupId, Class<? extends Deserializer<K>> keyDeserializer, Class<? extends Deserializer<V>> valueDeserializer) {
-      return createConsumer(groupId, keyDeserializer, valueDeserializer, Collections.emptyMap());
-  }
+    public <K, V> KafkaConsumer<K, V> createConsumer(String groupId,
+                                                     Class<? extends Deserializer<K>> keyDeserializer,
+                                                     Class<? extends Deserializer<V>> valueDeserializer) {
+        return createConsumer(groupId, keyDeserializer, valueDeserializer, Collections.emptyMap());
+    }
 
     public <K, V> KafkaConsumer<K, V> createConsumer(String groupId,
                                                      Class<? extends Deserializer<K>> keyDeserializer,
-                                                     Class<? extends Deserializer<V>> valueDeserializer, Map<String, Object> extraConfig) {
+                                                     Class<? extends Deserializer<V>> valueDeserializer,
+                                                     Map<String, Object> extraConfig) {
         Properties props = new Properties();
         props.put("bootstrap.servers", bootstrapServers);
         props.put("enable.auto.commit", "false");
@@ -57,7 +62,7 @@ public class KafkaClients {
         }
         // extraConfig : configure the kafka parameters (ex: ssl, ...)
         for (Map.Entry<String, Object> extraCfgEntry : extraConfig.entrySet()) {
-          props.put(extraCfgEntry.getKey(), extraCfgEntry.getValue());
+            props.put(extraCfgEntry.getKey(), extraCfgEntry.getValue());
         }
 
         return new KafkaConsumer<>(props);
