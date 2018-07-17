@@ -52,9 +52,13 @@ lazy val core = (project in file("core"))
     libraryDependencies ++= List(
       "org.apache.kafka" % "kafka-clients" % "1.0.0",
       "com.typesafe.akka" %% "akka-actor" % "2.5.6",
+      "com.typesafe.akka" %% "akka-stream" % "2.5.6",
       "com.typesafe.scala-logging" %% "scala-logging" % "3.7.2",
-      "org.scalatest" %% "scalatest" % "3.0.4" % "test"
-    )
+      "org.scalatest" %% "scalatest" % "3.0.4" % "test",
+      "com.typesafe.akka" %% "akka-testkit" % "2.5.6" % "test",
+      "com.typesafe.akka" %% "akka-stream-kafka" % "0.17" % "test",
+      "net.manub" %% "scalatest-embedded-kafka" % "1.0.0" % "test" exclude ("javax.jms", "jms")
+)
   )
 
 lazy val exampleJava = (project in file("example-java"))
