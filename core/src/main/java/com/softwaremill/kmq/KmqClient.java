@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.Future;
 
@@ -34,7 +35,7 @@ public class KmqClient<K, V> implements Closeable {
     private final static Logger LOG = LoggerFactory.getLogger(KmqClient.class);
 
     private final KmqConfig config;
-    private final long msgPollTimeout;
+    private final Duration msgPollTimeout;
 
     private final KafkaConsumer<K, V> msgConsumer;
     private final KafkaProducer<MarkerKey, MarkerValue> markerProducer;
@@ -42,7 +43,7 @@ public class KmqClient<K, V> implements Closeable {
     public KmqClient(KmqConfig config, KafkaClients clients,
                      Class<? extends Deserializer<K>> keyDeserializer,
                      Class<? extends Deserializer<V>> valueDeserializer,
-                     long msgPollTimeout) {
+                     Duration msgPollTimeout) {
 
         this.config = config;
         this.msgPollTimeout = msgPollTimeout;
