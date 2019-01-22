@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,7 +26,7 @@ class StandaloneProcessor {
         UncaughtExceptionHandling.setup();
 
         KmqClient<ByteBuffer, ByteBuffer> kmqClient = new KmqClient<>(KMQ_CONFIG, KAFKA_CLIENTS,
-                ByteBufferDeserializer.class, ByteBufferDeserializer.class, 100);
+                ByteBufferDeserializer.class, ByteBufferDeserializer.class, Duration.ofMillis(100));
 
         ExecutorService msgProcessingExecutor = Executors.newCachedThreadPool();
 
