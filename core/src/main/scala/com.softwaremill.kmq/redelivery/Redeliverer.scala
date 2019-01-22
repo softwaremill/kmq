@@ -21,8 +21,7 @@ trait Redeliverer {
 
 class DefaultRedeliverer(
   partition: Partition, producer: KafkaProducer[Array[Byte], Array[Byte]],
-  config: KmqConfig, clients: KafkaClients)
-  extends Redeliverer with StrictLogging {
+  config: KmqConfig, clients: KafkaClients) extends Redeliverer with StrictLogging {
 
   private val SendTimeoutSeconds = 60L
 

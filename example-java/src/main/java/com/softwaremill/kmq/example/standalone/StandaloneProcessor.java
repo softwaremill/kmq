@@ -7,9 +7,7 @@ import org.apache.kafka.common.serialization.ByteBufferDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.time.Clock;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,12 +15,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.softwaremill.kmq.example.standalone.StandaloneConfig.*;
+import static com.softwaremill.kmq.example.standalone.StandaloneConfig.KAFKA_CLIENTS;
+import static com.softwaremill.kmq.example.standalone.StandaloneConfig.KMQ_CONFIG;
 
 class StandaloneProcessor {
     private final static Logger LOG = LoggerFactory.getLogger(StandaloneProcessor.class);
 
-    public static void main(String[] args) throws InterruptedException, IOException {
+    public static void main(String[] args) {
         UncaughtExceptionHandling.setup();
 
         KmqClient<ByteBuffer, ByteBuffer> kmqClient = new KmqClient<>(KMQ_CONFIG, KAFKA_CLIENTS,

@@ -27,9 +27,8 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
 
   override def preStart(): Unit = {
     markerConsumer = clients.createConsumer(config.getRedeliveryConsumerGroupId,
-      classOf[MarkerKey.MarkerKeyDeserializer],
-      classOf[MarkerValue.MarkerValueDeserializer])
-
+        classOf[MarkerKey.MarkerKeyDeserializer],
+        classOf[MarkerValue.MarkerValueDeserializer])
     producer = clients.createProducer(classOf[ByteArraySerializer], classOf[ByteArraySerializer])
 
     setupMarkerConsumer()
