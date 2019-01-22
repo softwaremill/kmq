@@ -105,7 +105,7 @@ class RetryingRedeliverer(delegate: Redeliverer) extends Redeliverer with Strict
 }
 
 private class SingleOffsetReader(tp: TopicPartition, consumer: KafkaConsumer[Array[Byte], Array[Byte]]) {
-  private val PollTimeout = Duration.ofSeconds(100).toMillis
+  private val PollTimeout = Duration.ofSeconds(100)
 
   private var cachedRecords: List[ConsumerRecord[Array[Byte], Array[Byte]]] = Nil
 
