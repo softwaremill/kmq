@@ -73,7 +73,7 @@ public class EmbeddedExample {
 
     private static void processMessages(KafkaClients clients, KmqConfig kmqConfig) {
         KmqClient<ByteBuffer, ByteBuffer> kmqClient = new KmqClient<>(kmqConfig, clients,
-                ByteBufferDeserializer.class, ByteBufferDeserializer.class, 100);
+                ByteBufferDeserializer.class, ByteBufferDeserializer.class, Duration.ofMillis(100));
         final ExecutorService msgProcessingExecutor = Executors.newCachedThreadPool();
 
         while (true) {

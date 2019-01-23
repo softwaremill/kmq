@@ -5,7 +5,7 @@ name := "kmq"
 
 lazy val commonSettings = Seq(
   organization := "com.softwaremill.kmq",
-  version := "0.2.2",
+  version := "0.2.3",
   scalaVersion := "2.12.4",
   crossScalaVersions := List(scalaVersion.value, "2.11.11"),
 
@@ -50,14 +50,14 @@ lazy val core = (project in file("core"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= List(
-      "org.apache.kafka" % "kafka-clients" % "1.0.0",
-      "com.typesafe.akka" %% "akka-actor" % "2.5.6",
-      "com.typesafe.akka" %% "akka-stream" % "2.5.6",
-      "com.typesafe.scala-logging" %% "scala-logging" % "3.7.2",
-      "org.scalatest" %% "scalatest" % "3.0.4" % "test",
-      "com.typesafe.akka" %% "akka-testkit" % "2.5.6" % "test",
-      "com.typesafe.akka" %% "akka-stream-kafka" % "0.17" % "test",
-      "net.manub" %% "scalatest-embedded-kafka" % "1.0.0" % "test" exclude ("javax.jms", "jms")
+      "org.apache.kafka" % "kafka-clients" % "2.1.0",
+      "com.typesafe.akka" %% "akka-actor" % "2.5.19",
+      "com.typesafe.akka" %% "akka-stream" % "2.5.19",
+      "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
+      "org.scalatest" %% "scalatest" % "3.0.5" % "test",
+      "com.typesafe.akka" %% "akka-testkit" % "2.5.19" % "test",
+      "com.typesafe.akka" %% "akka-stream-kafka" % "0.22" % "test",
+      "net.manub" %% "scalatest-embedded-kafka" % "2.0.0" % "test" exclude ("javax.jms", "jms")
 )
   )
 
@@ -66,8 +66,8 @@ lazy val exampleJava = (project in file("example-java"))
   .settings(
     publishArtifact := false,
     libraryDependencies ++= List(
-      "org.apache.kafka" %% "kafka" % "1.0.0",
-      "net.manub" %% "scalatest-embedded-kafka" % "0.16.0"
+      "org.apache.kafka" %% "kafka" % "2.1.0",
+      "net.manub" %% "scalatest-embedded-kafka" % "2.0.0"
     )
   ) dependsOn(core)
 
@@ -76,7 +76,7 @@ lazy val exampleScala = (project in file("example-scala"))
   .settings(
     publishArtifact := false,
     libraryDependencies ++= List(
-      "com.typesafe.akka" %% "akka-stream-kafka" % "0.17",
+      "com.typesafe.akka" %% "akka-stream-kafka" % "0.22",
       "ch.qos.logback" % "logback-classic" % "1.2.3"
     )
   ) dependsOn(core)

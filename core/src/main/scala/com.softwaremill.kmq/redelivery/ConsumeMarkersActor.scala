@@ -1,5 +1,6 @@
 package com.softwaremill.kmq.redelivery
 
+import java.time.Duration
 import java.util.Collections
 
 import akka.actor.{Actor, ActorRef, Props}
@@ -14,7 +15,7 @@ import scala.collection.JavaConverters._
 
 class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Actor with StrictLogging {
 
-  private val OneSecond = 1000L
+  private val OneSecond = Duration.ofSeconds(1)
 
   private var markerConsumer: KafkaConsumer[MarkerKey, MarkerValue] = _
   private var producer: KafkaProducer[Array[Byte], Array[Byte]] = _
