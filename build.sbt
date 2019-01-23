@@ -53,7 +53,7 @@ lazy val core = (project in file("core"))
       "org.apache.kafka" % "kafka-clients" % "2.1.0",
       "com.typesafe.akka" %% "akka-actor" % "2.5.19",
       "com.typesafe.akka" %% "akka-stream" % "2.5.19",
-      "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
+      "com.typesafe.scala-logging" %% "scala-logging" % "3.7.2",
       "org.scalatest" %% "scalatest" % "3.0.5" % "test",
       "com.typesafe.akka" %% "akka-testkit" % "2.5.19" % "test",
       "com.typesafe.akka" %% "akka-stream-kafka" % "0.22" % "test",
