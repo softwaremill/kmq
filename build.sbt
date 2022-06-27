@@ -21,7 +21,7 @@ lazy val commonSettings = Seq(
   },
   credentials   += Credentials(Path.userHome / ".ivy2" / ".credentials"),
   publishMavenStyle := true,
-  publishArtifact in Test := false,
+  Test / publishArtifact := false,
   pomIncludeRepository := { _ => false },
   pomExtra :=
     <scm>
@@ -35,7 +35,7 @@ lazy val commonSettings = Seq(
           <url>http://www.warski.org</url>
         </developer>
       </developers>,
-  licenses := ("Apache2", new java.net.URL("http://www.apache.org/licenses/LICENSE-2.0.txt")) :: Nil,
+  licenses := ("Apache2", new java.net.URL("https://www.apache.org/licenses/LICENSE-2.0.txt")) :: Nil,
   homepage := Some(new java.net.URL("https://www.softwaremill.com/open-source"))
 )
 
@@ -69,7 +69,7 @@ lazy val exampleJava = (project in file("example-java"))
       "org.apache.kafka" %% "kafka" % "2.1.0",
       "net.manub" %% "scalatest-embedded-kafka" % "2.0.0"
     )
-  ) dependsOn(core)
+  ) dependsOn core
 
 lazy val exampleScala = (project in file("example-scala"))
   .settings(commonSettings)
@@ -79,4 +79,4 @@ lazy val exampleScala = (project in file("example-scala"))
       "com.typesafe.akka" %% "akka-stream-kafka" % "0.22",
       "ch.qos.logback" % "logback-classic" % "1.2.3"
     )
-  ) dependsOn(core)
+  ) dependsOn core
