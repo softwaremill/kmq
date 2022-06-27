@@ -2,7 +2,6 @@ val sbtSoftwareMillVersion = "2.0.9"
 addSbtPlugin("com.softwaremill.sbt-softwaremill" % "sbt-softwaremill-common" % sbtSoftwareMillVersion)
 addSbtPlugin("com.softwaremill.sbt-softwaremill" % "sbt-softwaremill-publish" % sbtSoftwareMillVersion)
 addSbtPlugin("com.softwaremill.sbt-softwaremill" % "sbt-softwaremill-browser-test-js" % sbtSoftwareMillVersion)
-addSbtPlugin("com.jsuereth" % "sbt-pgp" % "1.1.0") //TODO: remove unused plugins
 addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "1.1.0")
 addSbtPlugin("com.typesafe.sbt" % "sbt-twirl" % "1.5.1")
 addSbtPlugin("org.scalameta" % "sbt-mdoc" % "2.3.2")

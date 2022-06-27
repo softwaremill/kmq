@@ -50,8 +50,8 @@ class IntegrationTest extends TestKit(ActorSystem("test-system")) with FlatSpecL
       ProducerMessage.Message(
         new ProducerRecord[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, MarkerKey.fromRecord(msg.record), new StartMarker(kmqConfig.getMsgTimeoutMs)), msg)
     }
-      .via(Producer.flow(markerProducerSettings, markerProducer)) // 2. write the "start" marker
-      .map(_.message.passThrough)
+      .via(Producer.flexiFlow(markerProducerSettings, markerProducer)) // 2. write the "start" marker
+      .map(_.passThrough)
       .mapAsync(1) { msg =>
         msg.committableOffset.commitScaladsl().map(_ => msg.record) // this should be batched
       }

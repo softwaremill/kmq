@@ -43,8 +43,8 @@ object StandaloneReactiveClient extends App with StrictLogging {
       ProducerMessage.Message(
         new ProducerRecord[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, MarkerKey.fromRecord(msg.record), new StartMarker(kmqConfig.getMsgTimeoutMs)), msg)
     }
-    .via(Producer.flow(markerProducerSettings, markerProducer)) // 2. write the "start" marker
-    .map(_.message.passThrough)
+    .via(Producer.flexiFlow(markerProducerSettings, markerProducer)) // 2. write the "start" marker
+    .map(_.passThrough)
     .mapAsync(1) { msg => // 3. commit offsets after the "start" markers are sent
       msg.committableOffset.commitScaladsl().map(_ => msg.record) // this should be batched
     }
@@ -78,7 +78,7 @@ object StandaloneSender extends App with StrictLogging {
   val producerSettings = ProducerSettings(system, new StringSerializer(), new StringSerializer())
     .withBootstrapServers(bootstrapServer)
 
-  Source.tick(0.seconds, 100.millis, ()).zip(Source.unfold(0)(x => Some(x+1, x+1))).map(_._2)
+  Source.tick(0.seconds, 100.millis, ()).zip(Source.unfold(0)(x => Some((x+1, x+1)))).map(_._2)
     .map(msg => s"message number $msg")
     .take(100)
     .map { msg => logger.info(s"Sending: '$msg'"); msg }
