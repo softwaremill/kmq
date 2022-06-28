@@ -58,7 +58,7 @@ lazy val core = (projectMatrix in file("core"))
       "org.scalatest" %% "scalatest" % "3.0.9" % Test,
       "com.typesafe.akka" %% "akka-testkit" % "2.6.19" % Test,
       "com.typesafe.akka" %% "akka-stream-kafka" % "2.1.1" % Test,
-      "io.github.embeddedkafka" %% "embedded-kafka" % "2.4.1.1" % Test exclude("javax.jms", "jms"),
+      "io.github.embeddedkafka" %% "embedded-kafka" % "3.2.0" % Test exclude("javax.jms", "jms"),
       "ch.qos.logback" % "logback-classic" % "1.2.11" % Test
     )
   )
@@ -70,7 +70,7 @@ lazy val exampleJava = (projectMatrix in file("example-java"))
     publishArtifact := false,
     libraryDependencies ++= List(
       "org.apache.kafka" %% "kafka" % "3.1.0",
-      "io.github.embeddedkafka" %% "embedded-kafka" % "2.4.1.1",
+      "io.github.embeddedkafka" %% "embedded-kafka" % "3.2.0",
       "ch.qos.logback" % "logback-classic" % "1.2.11" % Runtime
     )
   )

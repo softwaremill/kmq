@@ -2,9 +2,9 @@ package com.softwaremill.kmq.example.embedded;
 
 import com.softwaremill.kmq.*;
 import com.softwaremill.kmq.example.UncaughtExceptionHandling;
-import net.manub.embeddedkafka.EmbeddedKafka$;
-import net.manub.embeddedkafka.EmbeddedKafkaConfig;
-import net.manub.embeddedkafka.EmbeddedKafkaConfig$;
+import io.github.embeddedkafka.EmbeddedKafka$;
+import io.github.embeddedkafka.EmbeddedKafkaConfig;
+import io.github.embeddedkafka.EmbeddedKafkaConfig$;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
