@@ -2,7 +2,6 @@ package com.softwaremill.kmq.redelivery
 
 import java.time.Duration
 import java.util.Random
-
 import akka.actor.ActorSystem
 import akka.kafka.scaladsl.{Consumer, Producer}
 import akka.kafka.{ConsumerSettings, ProducerMessage, ProducerSettings, Subscriptions}
@@ -15,11 +14,13 @@ import org.apache.kafka.clients.producer.{ProducerConfig, ProducerRecord}
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.{Seconds, Span}
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers._
 
 import scala.collection.mutable.ArrayBuffer
 
-class IntegrationTest extends TestKit(ActorSystem("test-system")) with FlatSpecLike with KafkaSpec with BeforeAndAfterAll with Eventually with Matchers {
+class IntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecLike with KafkaSpec with BeforeAndAfterAll with Eventually {
 
   implicit val materializer = ActorMaterializer()
   import system.dispatcher
@@ -75,7 +76,7 @@ class IntegrationTest extends TestKit(ActorSystem("test-system")) with FlatSpecL
     eventually {
       receivedMessages.size should be > processedMessages.size
       processedMessages.sortBy(_.toInt).distinct shouldBe messages
-    }(PatienceConfig(timeout = Span(15, Seconds)), implicitly)
+    }(PatienceConfig(timeout = Span(15, Seconds)), implicitly, implicitly)
 
     redeliveryHook.close()
     control.shutdown()
