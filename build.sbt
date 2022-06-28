@@ -5,14 +5,13 @@ import sbt._
 
 name := "kmq"
 organization := "com.softwaremill.kmq"
-version := "0.2.3"
+version := "0.3-SNAPSHOT"
 
-val scala2_11 = "2.11.12"
 val scala2_12 = "2.12.16"
 val scala2_13 = "2.13.8"
 val scala3 = "3.1.2"
 
-val scala2Versions = Seq(scala2_11, scala2_12, scala2_13)
+val scala2Versions = Seq(scala2_12, scala2_13)
 val scala2And3Versions = scala2Versions ++ List(scala3)
 val examplesScalaVersions = List(scala2_12)
 
@@ -52,14 +51,14 @@ lazy val core = (projectMatrix in file("core"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= List(
-      "org.apache.kafka" % "kafka-clients" % "2.1.1",
-      "com.typesafe.akka" %% "akka-actor" % "2.5.32",
-      "com.typesafe.akka" %% "akka-stream" % "2.5.32",
+      "org.apache.kafka" % "kafka-clients" % "3.1.0",
+      "com.typesafe.akka" %% "akka-actor" % "2.6.19",
+      "com.typesafe.akka" %% "akka-stream" % "2.6.19",
       "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
-      "org.scalatest" %% "scalatest" % "3.0.9" % "test",
-      "com.typesafe.akka" %% "akka-testkit" % "2.5.32" % "test",
-      "com.typesafe.akka" %% "akka-stream-kafka" % "1.0.4" % "test",
-      "io.github.embeddedkafka" %% "embedded-kafka" % "2.4.1.1" exclude("javax.jms", "jms"),
+      "org.scalatest" %% "scalatest" % "3.0.9" % Test,
+      "com.typesafe.akka" %% "akka-testkit" % "2.6.19" % Test,
+      "com.typesafe.akka" %% "akka-stream-kafka" % "2.1.1" % Test,
+      "io.github.embeddedkafka" %% "embedded-kafka" % "2.4.1.1" % Test exclude("javax.jms", "jms"),
       "ch.qos.logback" % "logback-classic" % "1.2.11" % Test
     )
   )
@@ -70,7 +69,7 @@ lazy val exampleJava = (projectMatrix in file("example-java"))
   .settings(
     publishArtifact := false,
     libraryDependencies ++= List(
-      "org.apache.kafka" %% "kafka" % "2.1.1",
+      "org.apache.kafka" %% "kafka" % "3.1.0",
       "io.github.embeddedkafka" %% "embedded-kafka" % "2.4.1.1",
       "ch.qos.logback" % "logback-classic" % "1.2.11" % Runtime
     )
@@ -83,7 +82,7 @@ lazy val exampleScala = (projectMatrix in file("example-scala"))
   .settings(
     publishArtifact := false,
     libraryDependencies ++= List(
-      "com.typesafe.akka" %% "akka-stream-kafka" % "1.0.4",
+      "com.typesafe.akka" %% "akka-stream-kafka" % "2.1.1",
       "ch.qos.logback" % "logback-classic" % "1.2.11" % Runtime
     )
   )
