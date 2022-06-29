@@ -39,7 +39,6 @@ class IntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSp
       new MarkerKey.MarkerKeySerializer(), new MarkerValue.MarkerValueSerializer())
       .withBootstrapServers(bootstrapServer)
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
-    val markerProducer = markerProducerSettings.createKafkaProducer()
 
     val random = new Random()
 
@@ -51,7 +50,7 @@ class IntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSp
       ProducerMessage.Message(
         new ProducerRecord[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, MarkerKey.fromRecord(msg.record), new StartMarker(kmqConfig.getMsgTimeoutMs)), msg)
     }
-      .via(Producer.flexiFlow(markerProducerSettings, markerProducer)) // 2. write the "start" marker
+      .via(Producer.flexiFlow(markerProducerSettings)) // 2. write the "start" marker
       .map(_.passThrough)
       .mapAsync(1) { msg =>
         msg.committableOffset.commitScaladsl().map(_ => msg.record) // this should be batched
@@ -65,7 +64,7 @@ class IntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSp
         processedMessages += processedMessage.value
         new ProducerRecord[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, MarkerKey.fromRecord(processedMessage), EndMarker.INSTANCE)
       }
-      .to(Producer.plainSink(markerProducerSettings, markerProducer)) // 5. write "end" markers
+      .to(Producer.plainSink(markerProducerSettings)) // 5. write "end" markers
       .run()
 
     val redeliveryHook = RedeliveryTracker.start(new KafkaClients(bootstrapServer), kmqConfig)
