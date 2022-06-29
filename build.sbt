@@ -5,7 +5,7 @@ import sbt._
 
 name := "kmq"
 organization := "com.softwaremill.kmq"
-version := "0.3-SNAPSHOT"
+version := "0.3.0-SNAPSHOT"
 
 val scala2_12 = "2.12.16"
 val scala2_13 = "2.13.8"
