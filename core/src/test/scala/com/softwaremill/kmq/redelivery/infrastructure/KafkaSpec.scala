@@ -1,13 +1,13 @@
 package com.softwaremill.kmq.redelivery.infrastructure
 
-import net.manub.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
+import io.github.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.scalatest.{BeforeAndAfterEach, Suite}
 
 trait KafkaSpec extends BeforeAndAfterEach { self: Suite =>
 
-  val testKafkaConfig = EmbeddedKafkaConfig(9092, 2182)
-  private implicit val stringDeserializer = new StringDeserializer()
+  val testKafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig(9092, 2182)
+  private implicit val stringDeserializer: StringDeserializer = new StringDeserializer()
 
   def sendToKafka(topic: String, message: String): Unit = {
     EmbeddedKafka.publishStringMessageToKafka(topic, message)(testKafkaConfig)

@@ -15,7 +15,7 @@ class MarkersQueueTest extends AnyFlatSpec {
     val toRedeliver = mq.markersToRedeliver(15000)
 
     // then
-    toRedeliver should have size (1)
+    toRedeliver should have size 1
     toRedeliver.head.getMessageOffset should be (1000)
   }
 
@@ -29,7 +29,7 @@ class MarkersQueueTest extends AnyFlatSpec {
     val toRedeliver = mq.markersToRedeliver(17000)
 
     // then
-    toRedeliver should have size (2)
+    toRedeliver should have size 2
     toRedeliver.map(_.getMessageOffset).toSet should be (Set(1001L, 1000L))
   }
 }
