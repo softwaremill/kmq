@@ -46,7 +46,7 @@ Maven:
         <version>0.2</version>
     </dependency>
 
-(Use `core_2.12` if you are using other components depending on Scala 2.12.)
+Note: The supported Scala versions are: 2.12, 2.13.
 
 # Client flow
 
