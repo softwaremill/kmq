@@ -51,7 +51,7 @@ lazy val core = (projectMatrix in file("core"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= List(
-      "org.apache.kafka" % "kafka-clients" % "3.1.0",
+      "org.apache.kafka" % "kafka-clients" % "2.7.2" exclude("org.scala-lang.modules", "scala-java8-compat"),
       "com.typesafe.akka" %% "akka-actor" % "2.6.19",
       "com.typesafe.akka" %% "akka-stream" % "2.6.19",
       "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
@@ -59,7 +59,7 @@ lazy val core = (projectMatrix in file("core"))
       "org.scalatest" %% "scalatest-flatspec" % "3.2.12" % Test,
       "com.typesafe.akka" %% "akka-testkit" % "2.6.19" % Test,
       "com.typesafe.akka" %% "akka-stream-kafka" % "2.1.1" % Test,
-      "io.github.embeddedkafka" %% "embedded-kafka" % "3.2.0" % Test exclude("javax.jms", "jms"),
+      "io.github.embeddedkafka" %% "embedded-kafka" % "2.7.0" % Test exclude("javax.jms", "jms"),
       "ch.qos.logback" % "logback-classic" % "1.2.11" % Test
     )
   )
@@ -70,8 +70,8 @@ lazy val exampleJava = (projectMatrix in file("example-java"))
   .settings(
     publishArtifact := false,
     libraryDependencies ++= List(
-      "org.apache.kafka" %% "kafka" % "3.1.0",
-      "io.github.embeddedkafka" %% "embedded-kafka" % "3.2.0",
+      "org.apache.kafka" %% "kafka" % "2.7.2",
+      "io.github.embeddedkafka" %% "embedded-kafka" % "2.7.0",
       "ch.qos.logback" % "logback-classic" % "1.2.11" % Runtime
     )
   )
