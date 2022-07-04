@@ -2,7 +2,6 @@ package com.softwaremill.kmq.redelivery
 
 import java.time.Duration
 import java.util.Random
-
 import akka.actor.ActorSystem
 import akka.kafka.scaladsl.{Consumer, Producer}
 import akka.kafka.{ConsumerSettings, ProducerMessage, ProducerSettings, Subscriptions}
@@ -15,11 +14,13 @@ import org.apache.kafka.clients.producer.{ProducerConfig, ProducerRecord}
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.{Seconds, Span}
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers._
 
 import scala.collection.mutable.ArrayBuffer
 
-class IntegrationTest extends TestKit(ActorSystem("test-system")) with FlatSpecLike with KafkaSpec with BeforeAndAfterAll with Eventually with Matchers {
+class IntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecLike with KafkaSpec with BeforeAndAfterAll with Eventually {
 
   implicit val materializer = ActorMaterializer()
   import system.dispatcher
@@ -38,7 +39,6 @@ class IntegrationTest extends TestKit(ActorSystem("test-system")) with FlatSpecL
       new MarkerKey.MarkerKeySerializer(), new MarkerValue.MarkerValueSerializer())
       .withBootstrapServers(bootstrapServer)
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
-    val markerProducer = markerProducerSettings.createKafkaProducer()
 
     val random = new Random()
 
@@ -50,8 +50,8 @@ class IntegrationTest extends TestKit(ActorSystem("test-system")) with FlatSpecL
       ProducerMessage.Message(
         new ProducerRecord[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, MarkerKey.fromRecord(msg.record), new StartMarker(kmqConfig.getMsgTimeoutMs)), msg)
     }
-      .via(Producer.flow(markerProducerSettings, markerProducer)) // 2. write the "start" marker
-      .map(_.message.passThrough)
+      .via(Producer.flexiFlow(markerProducerSettings)) // 2. write the "start" marker
+      .map(_.passThrough)
       .mapAsync(1) { msg =>
         msg.committableOffset.commitScaladsl().map(_ => msg.record) // this should be batched
       }
@@ -64,7 +64,7 @@ class IntegrationTest extends TestKit(ActorSystem("test-system")) with FlatSpecL
         processedMessages += processedMessage.value
         new ProducerRecord[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, MarkerKey.fromRecord(processedMessage), EndMarker.INSTANCE)
       }
-      .to(Producer.plainSink(markerProducerSettings, markerProducer)) // 5. write "end" markers
+      .to(Producer.plainSink(markerProducerSettings)) // 5. write "end" markers
       .run()
 
     val redeliveryHook = RedeliveryTracker.start(new KafkaClients(bootstrapServer), kmqConfig)
@@ -75,7 +75,7 @@ class IntegrationTest extends TestKit(ActorSystem("test-system")) with FlatSpecL
     eventually {
       receivedMessages.size should be > processedMessages.size
       processedMessages.sortBy(_.toInt).distinct shouldBe messages
-    }(PatienceConfig(timeout = Span(15, Seconds)), implicitly)
+    }(PatienceConfig(timeout = Span(15, Seconds)), implicitly, implicitly)
 
     redeliveryHook.close()
     control.shutdown()

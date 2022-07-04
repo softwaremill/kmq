@@ -41,7 +41,9 @@ class CommitMarkerOffsetsActor(markerTopic: String, clients: KafkaClients) exten
       try {
         commitOffsets()
         toCommit = Map()
-      } finally context.system.scheduler.scheduleOnce(1.second, self, DoCommit)
+      } finally {
+        context.system.scheduler.scheduleOnce(1.second, self, DoCommit)
+      }
   }
 
   private def commitOffsets(): Unit = if (toCommit.nonEmpty) {

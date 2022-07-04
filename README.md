@@ -42,11 +42,11 @@ Maven:
 
     <dependency>
         <groupId>com.softwaremill.kmq</groupId>
-        <artifactId>core_2.12</artifactId>
+        <artifactId>core_2.13</artifactId>
         <version>0.2</version>
     </dependency>
 
-(Use `core_2.11` if you are using other components depending on Scala 2.11.)
+Note: The supported Scala versions are: 2.12, 2.13.
 
 # Client flow
 
