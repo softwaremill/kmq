@@ -1,21 +1,24 @@
 package com.softwaremill.kmq.redelivery
 
-import java.time.Duration
-import java.util.Collections
-import java.util.concurrent.{Future, TimeUnit}
-
 import com.softwaremill.kmq.{EndMarker, KafkaClients, KmqConfig, MarkerKey}
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.TopicPartition
+import org.apache.kafka.common.header.Header
+import org.apache.kafka.common.header.internals.RecordHeader
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 
+import java.nio.ByteBuffer
+import java.time.Duration
+import java.util.Collections
+import java.util.concurrent.{CompletableFuture, Future, TimeUnit}
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 
 trait Redeliverer {
   def redeliver(toRedeliver: List[MarkerKey]): Unit
+
   def close(): Unit
 }
 
@@ -52,11 +55,18 @@ class DefaultRedeliverer(
 
     reader.read(marker.getMessageOffset) match {
       case None =>
-        throw new IllegalStateException(s"Cannot redeliver $marker from topic ${config.getMsgTopic}, due to data fetch timeout")
+        throw new IllegalStateException(s"Cannot redeliver $marker from topic ${config.getMsgTopic} due to data fetch timeout")
 
       case Some(toSend) =>
-        logger.info(s"Redelivering message from ${config.getMsgTopic}, partition ${marker.getPartition}, offset ${marker.getMessageOffset}")
-        producer.send(new ProducerRecord(toSend.topic, toSend.partition, toSend.key, toSend.value))
+        val redeliveryCount = toSend.headers.asScala.find(_.key() == config.getRedeliveryCountHeader).map(_.value()).map(decodeInt).getOrElse(0)
+        if (redeliveryCount < config.getMaxRedeliveryCount) {
+          logger.info(s"Redelivering message from ${config.getMsgTopic}, partition ${marker.getPartition}, offset ${marker.getMessageOffset}, redelivery count $redeliveryCount")
+          val redeliveryHeader = Seq[Header](new RecordHeader(config.getRedeliveryCountHeader, encodeInt(redeliveryCount + 1))).asJava
+          producer.send(new ProducerRecord(toSend.topic, toSend.partition, toSend.key, toSend.value, redeliveryHeader))
+        } else {
+          logger.warn(s"Redelivering message from ${config.getMsgTopic}, partition ${marker.getPartition}, offset ${marker.getMessageOffset}, redelivery count $redeliveryCount - max redelivery count of ${config.getMaxRedeliveryCount} exceeded")
+          CompletableFuture.completedFuture(().asInstanceOf[Nothing]) //TODO: send to dead-letter queue
+        }
     }
   }
 
@@ -68,6 +78,21 @@ class DefaultRedeliverer(
   private case class RedeliveredMarker(marker: MarkerKey, sendResult: Future[RecordMetadata])
 
   def close(): Unit = reader.close()
+
+  private def decodeInt(bytes: Array[Byte]): Int = {
+    if (bytes.length == 1)
+      bytes(0)
+    else
+      ByteBuffer.wrap(bytes).getInt
+  }
+
+  private def encodeInt(value: Int): Array[Byte] = {
+    val byteValue = value.toByte
+    if (byteValue == value)
+      Array(byteValue)
+    else
+      ByteBuffer.allocate(4).putInt(value).array()
+  }
 }
 
 class RetryingRedeliverer(delegate: Redeliverer) extends Redeliverer with StrictLogging {
@@ -87,7 +112,7 @@ class RetryingRedeliverer(delegate: Redeliverer) extends Redeliverer with Strict
       } catch {
         case e: Exception if batch.retry < MaxRetries =>
           logger.warn(s"Exception when trying to redeliver ${batch.markers}. Will try again.", e)
-          batch.markers.map(m => RedeliveryBatch(List(m), batch.retry+1)) // retrying one-by-one
+          batch.markers.map(m => RedeliveryBatch(List(m), batch.retry + 1)) // retrying one-by-one
         case e: Exception =>
           logger.error(s"Exception when trying to redeliver ${batch.markers}. Tried $MaxRetries, Will not try again.", e)
           Nil
