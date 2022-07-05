@@ -16,20 +16,20 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.time.{Seconds, Span}
 
-import java.time.Duration
 import java.util.{Random, UUID}
 import scala.collection.mutable.ArrayBuffer
 
 class IntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecLike with KafkaSpec with BeforeAndAfterAll with Eventually {
 
   implicit val materializer = ActorMaterializer()
+
   import system.dispatcher
 
   "KMQ" should "resend message if not committed" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
-    val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery", Duration.ofSeconds(1).toMillis,
-      1000)
+    val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
+      1000, 1000)
 
     val consumerSettings = ConsumerSettings(system, new StringDeserializer, new StringDeserializer)
       .withBootstrapServers(bootstrapServer)
@@ -48,9 +48,9 @@ class IntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSp
 
     val control = Consumer.committableSource(consumerSettings, Subscriptions.topics(kmqConfig.getMsgTopic)) // 1. get messages from topic
       .map { msg =>
-      ProducerMessage.Message(
-        new ProducerRecord[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, MarkerKey.fromRecord(msg.record), new StartMarker(kmqConfig.getMsgTimeoutMs)), msg)
-    }
+        ProducerMessage.Message(
+          new ProducerRecord[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, MarkerKey.fromRecord(msg.record), new StartMarker(kmqConfig.getMsgTimeoutMs)), msg)
+      }
       .via(Producer.flexiFlow(markerProducerSettings)) // 2. write the "start" marker
       .map(_.passThrough)
       .mapAsync(1) { msg =>
@@ -71,7 +71,7 @@ class IntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSp
     val redeliveryHook = RedeliveryTracker.start(new KafkaClients(bootstrapServer), kmqConfig)
 
     val messages = (0 to 20).map(_.toString)
-    messages.foreach(msg => sendToKafka(kmqConfig.getMsgTopic,msg))
+    messages.foreach(msg => sendToKafka(kmqConfig.getMsgTopic, msg))
 
     eventually {
       receivedMessages.size should be > processedMessages.size
@@ -85,8 +85,8 @@ class IntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSp
   "KMQ" should "resend message if max redelivery count not exceeded" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
-    val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery", Duration.ofSeconds(1).toMillis,
-      1000)
+    val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
+      1000, 1000)
 
     val consumerSettings = ConsumerSettings(system, new StringDeserializer, new StringDeserializer)
       .withBootstrapServers(bootstrapServer)
@@ -125,14 +125,11 @@ class IntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSp
 
     val messages = (0 to 6).map(_.toString)
     messages.foreach(msg => sendToKafka(kmqConfig.getMsgTopic, msg))
-    val expectedReceived = Array(0, 0, 0, 0, 1, 2, 3, 3, 3, 3, 4, 5, 6, 6, 6, 6)
+    val expectedReceived = Array(0, 0, 0, 0, 1, 2, 3, 3, 3, 3, 4, 5, 6, 6, 6, 6).map(_.toString)
 
     eventually {
       receivedMessages.sortBy(_.toInt) shouldBe expectedReceived
-    }(PatienceConfig(
-      timeout = Span(600, Seconds),
-      interval = Span(10, Seconds)),
-      implicitly, implicitly)
+    }(PatienceConfig(timeout = Span(15, Seconds)), implicitly, implicitly)
 
     redeliveryHook.close()
     control.shutdown()
