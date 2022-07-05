@@ -4,6 +4,7 @@ import akka.actor.ActorSystem
 import akka.kafka.scaladsl.{Consumer, Producer}
 import akka.kafka.{ConsumerSettings, ProducerMessage, ProducerSettings, Subscriptions}
 import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.Sink
 import akka.testkit.TestKit
 import com.softwaremill.kmq._
 import com.softwaremill.kmq.redelivery.infrastructure.KafkaSpec
@@ -101,6 +102,7 @@ class IntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSp
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
 
     lazy val receivedMessages = ArrayBuffer[String]()
+    lazy val undeliveredMessages = ArrayBuffer[String]()
 
     val control = Consumer.committableSource(consumerSettings, Subscriptions.topics(kmqConfig.getMsgTopic)) // 1. get messages from topic
       .map { msg =>
@@ -123,14 +125,24 @@ class IntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSp
       .to(Producer.plainSink(markerProducerSettings)) // 5. write "end" markers
       .run()
 
+    val undeliveredControl = Consumer.plainSource(consumerSettings, Subscriptions.topics(s"${kmqConfig.getMsgTopic}__undelivered")) // 1. get messages from dead-letter topic
+      .map { msg =>
+        undeliveredMessages += msg.value
+        msg
+      }
+      .to(Sink.ignore)
+      .run()
+
     val redeliveryHook = RedeliveryTracker.start(new KafkaClients(bootstrapServer), kmqConfig)
 
     val messages = (0 to 6).map(_.toString)
     messages.foreach(msg => sendToKafka(kmqConfig.getMsgTopic, msg))
     val expectedReceived = Array(0, 0, 0, 0, 1, 2, 3, 3, 3, 3, 4, 5, 6, 6, 6, 6).map(_.toString)
+    val expectedUndelivered = Array(0, 3, 6).map(_.toString)
 
     eventually {
       receivedMessages.sortBy(_.toInt) shouldBe expectedReceived
+      undeliveredMessages.sortBy(_.toInt) shouldBe expectedUndelivered
     }(PatienceConfig(timeout = Span(15, Seconds)), implicitly, implicitly)
 
     redeliveryHook.close()
