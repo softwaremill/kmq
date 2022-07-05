@@ -22,8 +22,8 @@ trait Redeliverer {
 }
 
 class DefaultRedeliverer(
-                          partition: Partition, producer: KafkaProducer[Array[Byte], Array[Byte]],
-                          config: KmqConfig, clients: KafkaClients) extends Redeliverer with StrictLogging {
+  partition: Partition, producer: KafkaProducer[Array[Byte], Array[Byte]],
+  config: KmqConfig, clients: KafkaClients) extends Redeliverer with StrictLogging {
 
   private val SendTimeoutSeconds = 60L
 
@@ -45,7 +45,6 @@ class DefaultRedeliverer(
         writeEndMarker(rm.marker)
       })
   }
-
 
   private def redeliver(marker: MarkerKey): Future[RecordMetadata] = {
     if (marker.getPartition != partition) {
@@ -89,7 +88,7 @@ class DefaultRedeliverer(
 
 class RetryingRedeliverer(delegate: Redeliverer) extends Redeliverer with StrictLogging {
   private val MaxBatch = 128
-  private val MaxRetries = 1
+  private val MaxRetries = 16
 
   override def redeliver(toRedeliver: List[MarkerKey]): Unit = {
     tryRedeliver(toRedeliver.sortBy(_.getMessageOffset).grouped(MaxBatch).toList.map(RedeliveryBatch(_, 1)))
