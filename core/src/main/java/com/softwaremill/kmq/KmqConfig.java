@@ -9,6 +9,7 @@ public class KmqConfig {
 
     private final String msgTopic;
     private final String markerTopic;
+    private final String deadLetterTopic;
     private final String msgConsumerGroupId;
     private final String redeliveryConsumerGroupId;
     private final long msgTimeoutMs;
@@ -19,6 +20,7 @@ public class KmqConfig {
     /**
      * @param msgTopic Name of the Kafka topic containing the messages.
      * @param markerTopic Name of the Kafka topic containing the markers.
+     * @param deadLetterTopic Name of the Kafka topic containing all undelivered messages.
      * @param msgConsumerGroupId Consumer group id for reading messages from `msgTopic`.
      * @param redeliveryConsumerGroupId Consumer group id for reading messages from `markerTopic`.
      * @param msgTimeoutMs Timeout, after which messages, if not processed, are redelivered.
@@ -28,12 +30,13 @@ public class KmqConfig {
      * @param maxRedeliveryCount Max number of message redeliveries.
      */
     public KmqConfig(
-            String msgTopic, String markerTopic, String msgConsumerGroupId, String redeliveryConsumerGroupId,
+            String msgTopic, String markerTopic, String deadLetterTopic, String msgConsumerGroupId, String redeliveryConsumerGroupId,
             long msgTimeoutMs, long useNowForRedeliverDespiteNoMarkerSeenForMs,
             String redeliveryCountHeader, int maxRedeliveryCount) {
 
         this.msgTopic = msgTopic;
         this.markerTopic = markerTopic;
+        this.deadLetterTopic = deadLetterTopic;
         this.msgConsumerGroupId = msgConsumerGroupId;
         this.redeliveryConsumerGroupId = redeliveryConsumerGroupId;
         this.msgTimeoutMs = msgTimeoutMs;
@@ -45,7 +48,8 @@ public class KmqConfig {
     public KmqConfig(
             String msgTopic, String markerTopic, String msgConsumerGroupId, String redeliveryConsumerGroupId,
             long msgTimeoutMs, long useNowForRedeliverDespiteNoMarkerSeenForMs) {
-        this(msgTopic, markerTopic, msgConsumerGroupId, redeliveryConsumerGroupId,
+
+        this(msgTopic, markerTopic, msgTopic + "__undelivered", msgConsumerGroupId, redeliveryConsumerGroupId,
                 msgTimeoutMs, useNowForRedeliverDespiteNoMarkerSeenForMs,
                 REDELIVERY_COUNT_HEADER, MAX_REDELIVERY_COUNT);
     }
@@ -56,6 +60,10 @@ public class KmqConfig {
 
     public String getMarkerTopic() {
         return markerTopic;
+    }
+
+    public String getDeadLetterTopic() {
+        return deadLetterTopic;
     }
 
     public String getMsgConsumerGroupId() {

@@ -29,7 +29,7 @@ class IntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSp
   "KMQ" should "resend message if not committed" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
-    val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
+    val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", s"$uid-queue__undelivered", "kmq_client", "kmq_redelivery",
       1000, 1000,
       "kmq-redelivery-count", 3)
 
@@ -87,7 +87,7 @@ class IntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSp
   "KMQ" should "resend message if max redelivery count not exceeded" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
-    val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
+    val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", s"$uid-queue__undelivered", "kmq_client", "kmq_redelivery",
       1000, 1000,
       "kmq-redelivery-count", 3)
 
