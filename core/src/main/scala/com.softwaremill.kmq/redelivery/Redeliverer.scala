@@ -57,11 +57,10 @@ class DefaultRedeliverer(
         throw new IllegalStateException(s"Cannot redeliver $marker from topic ${config.getMsgTopic}, due to data fetch timeout")
 
       case Some(toSend) =>
-        val maxRedeliveryCount: Byte = 3
-        val redeliveryCount: Byte = toSend.headers.asScala.find(_.key() == "kmq-redelivery-count").map(_.value()).map(decodeByte).getOrElse(0)
-        if (redeliveryCount < maxRedeliveryCount) {
+        val redeliveryCount: Byte = toSend.headers.asScala.find(_.key() == config.getRedeliveryCountHeader).map(_.value()).map(decodeByte).getOrElse(0)
+        if (redeliveryCount < config.getMaxRedeliveryCount) {
           logger.info(s"Redelivering message from ${config.getMsgTopic}, partition ${marker.getPartition}, offset ${marker.getMessageOffset}, redelivery count: $redeliveryCount")
-          val redeliveryHeader = Seq[Header](new RecordHeader("kmq-redelivery-count", encodeByte(redeliveryCount + 1))).asJava
+          val redeliveryHeader = Seq[Header](new RecordHeader(config.getRedeliveryCountHeader, encodeByte(redeliveryCount + 1))).asJava
           producer.send(new ProducerRecord(toSend.topic, toSend.partition, toSend.key, toSend.value, redeliveryHeader))
         } else {
           logger.warn(s"Redelivering message from ${config.getMsgTopic}, partition ${marker.getPartition}, offset ${marker.getMessageOffset} - max redelivery count exceeded")
