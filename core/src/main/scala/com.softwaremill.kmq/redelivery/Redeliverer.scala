@@ -12,7 +12,7 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import java.nio.ByteBuffer
 import java.time.Duration
 import java.util.Collections
-import java.util.concurrent.{CompletableFuture, Future, TimeUnit}
+import java.util.concurrent.{Future, TimeUnit}
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 
@@ -64,8 +64,8 @@ class DefaultRedeliverer(
           val redeliveryHeader = Seq[Header](new RecordHeader(config.getRedeliveryCountHeader, encodeInt(redeliveryCount + 1))).asJava
           producer.send(new ProducerRecord(toSend.topic, toSend.partition, toSend.key, toSend.value, redeliveryHeader))
         } else {
-          logger.warn(s"Redelivering message from ${config.getMsgTopic}, partition ${marker.getPartition}, offset ${marker.getMessageOffset}, redelivery count $redeliveryCount - max redelivery count of ${config.getMaxRedeliveryCount} exceeded")
-          CompletableFuture.completedFuture(().asInstanceOf[Nothing]) //TODO: send to dead-letter queue
+          logger.warn(s"Redelivering message from ${config.getMsgTopic}, partition ${marker.getPartition}, offset ${marker.getMessageOffset}, redelivery count $redeliveryCount - max redelivery count of ${config.getMaxRedeliveryCount} exceeded; sending message to a dead-letter topic ${config.getDeadLetterTopic}")
+          producer.send(new ProducerRecord(config.getDeadLetterTopic, toSend.key, toSend.value))
         }
     }
   }
