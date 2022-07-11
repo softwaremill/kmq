@@ -16,7 +16,7 @@ object CommitMarkerOffsetsStream {
     val committerSettings = CommitterSettings(system)
 
     Consumer.committableSource(consumerSettings, Subscriptions.topics(markersTopic))
-      .groupBy(maxSubstreams = maxPartitions, f = msg => msg.record.partition) // sorted not on msg.record.key.messagePartition
+      .groupBy(maxSubstreams = maxPartitions, f = msg => msg.record.partition) // Note: sorted not on msg.record.key.messagePartition
       .statefulMapConcat { () =>
         val markersByOffset = new CustomPriorityQueueMap[MarkerKey, CommittableMessage[MarkerKey, MarkerValue]](valueOrdering = bySmallestOffsetAscending)
         msg => {
@@ -38,8 +38,8 @@ object CommitMarkerOffsetsStream {
           }
           else None
       }
+      .map(x => x.committableOffset)
       .mergeSubstreams
-      .map(_.committableOffset)
       .toMat(Committer.sink(committerSettings))(DrainingControl.apply)
       .run()
   }
