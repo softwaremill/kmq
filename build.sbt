@@ -47,11 +47,11 @@ lazy val core = (projectMatrix in file("core"))
       "org.apache.kafka" % "kafka-clients" % kafkaVersion exclude ("org.scala-lang.modules", "scala-java8-compat"),
       "com.typesafe.akka" %% "akka-actor" % akkaVersion,
       "com.typesafe.akka" %% "akka-stream" % akkaVersion,
+      "com.typesafe.akka" %% "akka-stream-kafka" % akkaStreamKafkaVersion,
       "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
       "org.scalatest" %% "scalatest" % scalaTestVersion % Test,
       "org.scalatest" %% "scalatest-flatspec" % scalaTestVersion % Test,
       "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
-      "com.typesafe.akka" %% "akka-stream-kafka" % akkaStreamKafkaVersion % Test,
       "io.github.embeddedkafka" %% "embedded-kafka" % kafkaVersion % Test exclude ("javax.jms", "jms"),
       "ch.qos.logback" % "logback-classic" % logbackVersion % Test
     )
