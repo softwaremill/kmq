@@ -21,10 +21,9 @@ object CommitMarkerOffsetsStream {
         val markersByOffset = new CustomPriorityQueueMap[MarkerKey, CommittableMessage[MarkerKey, MarkerValue]](valueOrdering = bySmallestOffsetAscending)
         msg => {
           msg.record.value match {
-            case StartMarker =>
-              markersByOffset.put(msg.record.key, msg)
-            case EndMarker =>
-              markersByOffset.remove(msg.record.key)
+            case _: StartMarker => markersByOffset.put(msg.record.key, msg)
+            case _: EndMarker => markersByOffset.remove(msg.record.key)
+            case _ => throw new IllegalArgumentException()
           }
           markersByOffset.headOption
         }
@@ -39,7 +38,7 @@ object CommitMarkerOffsetsStream {
           else None
       }
       .map(x => x.committableOffset)
-      .mergeSubstreams
+      .mergeSubstreams //TODO: confirm if necessary
       .toMat(Committer.sink(committerSettings))(DrainingControl.apply)
       .run()
   }
@@ -47,3 +46,4 @@ object CommitMarkerOffsetsStream {
   def bySmallestOffsetAscending(implicit ord: Ordering[Offset]): Ordering[CommittableMessage[MarkerKey, MarkerValue]] =
     (x, y) => ord.compare(y.record.offset, x.record.offset)
 }
+
