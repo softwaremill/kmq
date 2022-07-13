@@ -5,7 +5,9 @@ import akka.kafka._
 import akka.stream.Materializer
 import akka.testkit.TestKit
 import com.softwaremill.kmq._
+import com.softwaremill.kmq.redelivery.Offset
 import com.softwaremill.kmq.redelivery.infrastructure.KafkaSpec
+import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.{Deserializer, Serializer, StringDeserializer, StringSerializer}
 import org.scalatest.BeforeAndAfterAll
@@ -14,8 +16,8 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers._
 
 import java.util.UUID
-import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration.DurationInt
+import scala.concurrent.{Await, ExecutionContext}
 
 class CommitMarkerOffsetsIntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecLike with KafkaSpec with BeforeAndAfterAll with Eventually {
 
@@ -49,21 +51,29 @@ class CommitMarkerOffsetsIntegrationTest extends TestKit(ActorSystem("test-syste
     (1 to 10)
       .foreach(msg => sendToKafka(kmqConfig.getMarkerTopic, new MarkerKey(0, msg), new StartMarker(now.toMillis + 100).asInstanceOf[MarkerValue]))
 
-    (1 to 3)
+    Seq(1, 2, 3, 5)
       .foreach(msg => sendToKafka(kmqConfig.getMarkerTopic, new MarkerKey(0, msg), EndMarker.INSTANCE.asInstanceOf[MarkerValue]))
 
-    Thread.sleep(15.seconds.toMillis)
+    Thread.sleep(10.seconds.toMillis)
     Await.ready(commitMarkerOffsetsStreamControl.shutdown(), 60.seconds)
 
     val markers = consumeAllFromKafkaWithoutCommit(kmqConfig.getMarkerTopic, "other")(new MarkerKey.MarkerKeyDeserializer, new MarkerValue.MarkerValueDeserializer)
     val uncommittedMarkers = consumeAllFromKafkaWithoutCommit(kmqConfig.getMarkerTopic, kmqConfig.getRedeliveryConsumerGroupId)(new MarkerKey.MarkerKeyDeserializer, new MarkerValue.MarkerValueDeserializer)
 
-    markers.size shouldBe 13
-    uncommittedMarkers.size shouldBe 7
+    markers.size shouldBe 14
+
+    offsetsByMarkerType(uncommittedMarkers) should contain theSameElementsAs Map(
+      "StartMarker" -> Seq(4, 5, 6, 7, 8, 9, 10),
+      "EndMarker" -> Seq(1, 2, 3, 5)
+    )
   }
 
   override def afterAll(): Unit = {
     super.afterAll()
     TestKit.shutdownActorSystem(system)
+  }
+
+  def offsetsByMarkerType(markers: List[ConsumerRecord[MarkerKey, MarkerValue]]): Map[String, Seq[Offset]] = {
+    markers.groupMap(_.value.getClass.getSimpleName)(_.key.getMessageOffset)
   }
 }
