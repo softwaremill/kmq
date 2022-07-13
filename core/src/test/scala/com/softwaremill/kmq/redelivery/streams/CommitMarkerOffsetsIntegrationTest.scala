@@ -14,7 +14,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers._
 
 import java.util.UUID
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration.DurationInt
 
 class CommitMarkerOffsetsIntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecLike with KafkaSpec with BeforeAndAfterAll with Eventually {
@@ -53,8 +53,7 @@ class CommitMarkerOffsetsIntegrationTest extends TestKit(ActorSystem("test-syste
       .foreach(msg => sendToKafka(kmqConfig.getMarkerTopic, new MarkerKey(0, msg), EndMarker.INSTANCE.asInstanceOf[MarkerValue]))
 
     Thread.sleep(15.seconds.toMillis)
-    val commitMarkerOffsetsStreamShutdown = commitMarkerOffsetsStreamControl.drainAndShutdown()
-    Thread.sleep(15.seconds.toMillis)
+    Await.ready(commitMarkerOffsetsStreamControl.shutdown(), 60.seconds)
 
     val markers = consumeAllFromKafkaWithoutCommit(kmqConfig.getMarkerTopic, "other")(new MarkerKey.MarkerKeyDeserializer, new MarkerValue.MarkerValueDeserializer)
     val uncommittedMarkers = consumeAllFromKafkaWithoutCommit(kmqConfig.getMarkerTopic, kmqConfig.getRedeliveryConsumerGroupId)(new MarkerKey.MarkerKeyDeserializer, new MarkerValue.MarkerValueDeserializer)

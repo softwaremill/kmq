@@ -39,7 +39,7 @@ class CommitMarkerOffsetsStream(markerConsumerSettings: ConsumerSettings[MarkerK
           else None
       }
       .map(_.committableOffset)
-      .mergeSubstreams //TODO: confirm if necessary
+      .mergeSubstreams
       .toMat(Committer.sink(committerSettings))(DrainingControl.apply)
       .run()
   }
