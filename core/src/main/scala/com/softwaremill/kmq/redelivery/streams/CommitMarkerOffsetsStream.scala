@@ -9,13 +9,14 @@ import akka.kafka.{CommitterSettings, ConsumerSettings, Subscriptions}
 import com.softwaremill.kmq.redelivery.Offset
 import com.softwaremill.kmq.{EndMarker, MarkerKey, MarkerValue, StartMarker}
 
-object CommitMarkerOffsetsStream {
+class CommitMarkerOffsetsStream(markerConsumerSettings: ConsumerSettings[MarkerKey, MarkerValue],
+                                markersTopic: String, maxPartitions: Int)
+                               (implicit system: ActorSystem) {
 
-  def run(consumerSettings: ConsumerSettings[MarkerKey, MarkerValue], markersTopic: String, maxPartitions: Int)
-         (implicit system: ActorSystem): DrainingControl[Done] = {
+  def run(): DrainingControl[Done] = {
     val committerSettings = CommitterSettings(system)
 
-    Consumer.committableSource(consumerSettings, Subscriptions.topics(markersTopic))
+    Consumer.committableSource(markerConsumerSettings, Subscriptions.topics(markersTopic))
       .groupBy(maxSubstreams = maxPartitions, f = msg => msg.record.partition) // Note: sorted not on msg.record.key.messagePartition
       .statefulMapConcat { () =>
         val markersByOffset = new CustomPriorityQueueMap[MarkerKey, CommittableMessage[MarkerKey, MarkerValue]](valueOrdering = bySmallestOffsetAscending)
@@ -37,7 +38,7 @@ object CommitMarkerOffsetsStream {
           }
           else None
       }
-      .map(x => x.committableOffset)
+      .map(_.committableOffset)
       .mergeSubstreams //TODO: confirm if necessary
       .toMat(Committer.sink(committerSettings))(DrainingControl.apply)
       .run()
@@ -46,4 +47,3 @@ object CommitMarkerOffsetsStream {
   def bySmallestOffsetAscending(implicit ord: Ordering[Offset]): Ordering[CommittableMessage[MarkerKey, MarkerValue]] =
     (x, y) => ord.compare(y.record.offset, x.record.offset)
 }
-

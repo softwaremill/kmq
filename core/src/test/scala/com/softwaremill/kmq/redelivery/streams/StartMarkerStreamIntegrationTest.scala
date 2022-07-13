@@ -43,7 +43,12 @@ class StartMarkerStreamIntegrationTest extends TestKit(ActorSystem("test-system"
       .withBootstrapServers(bootstrapServer)
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
 
-    lazy val markerMessages = ArrayBuffer[String]()
+    val markerConsumerSettings = ConsumerSettings(system, new MarkerKey.MarkerKeyDeserializer(), new MarkerValue.MarkerValueDeserializer())
+      .withBootstrapServers(bootstrapServer)
+      .withGroupId(kmqConfig.getRedeliveryConsumerGroupId)
+      .withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+
+    lazy val markerMessages = ArrayBuffer[MarkerValue]()
 
     val startMarkerStreamControl = new StartMarkerStream(consumerSettings, markerProducerSettings,
       kmqConfig.getMsgTopic, kmqConfig.getMarkerTopic, 64, 3.second.toMillis)
@@ -53,7 +58,7 @@ class StartMarkerStreamIntegrationTest extends TestKit(ActorSystem("test-system"
       .map(_.toString)
       .foreach(msg => sendToKafka(kmqConfig.getMsgTopic, msg))
 
-    val markersControl = Consumer.plainSource(consumerSettings, Subscriptions.topics(kmqConfig.getMarkerTopic))
+    val markersControl = Consumer.plainSource(markerConsumerSettings, Subscriptions.topics(kmqConfig.getMarkerTopic))
       .map { msg =>
         markerMessages += msg.value
       }

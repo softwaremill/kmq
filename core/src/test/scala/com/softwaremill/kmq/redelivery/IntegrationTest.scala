@@ -174,6 +174,7 @@ class IntegrationTest
 
     redeliveryHook.close()
     control.shutdown()
+    undeliveredControl.shutdown()
   }
 
   override def afterAll(): Unit = {
