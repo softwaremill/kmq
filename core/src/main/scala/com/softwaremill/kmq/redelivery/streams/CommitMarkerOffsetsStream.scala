@@ -18,7 +18,7 @@ class CommitMarkerOffsetsStream(markerConsumerSettings: ConsumerSettings[MarkerK
 
     Consumer.committableSource(markerConsumerSettings, Subscriptions.topics(markersTopic))
       .groupBy(maxSubstreams = maxPartitions, f = msg => msg.record.partition) // Note: sorted not on msg.record.key.messagePartition
-      .statefulMapConcat { () =>
+      .statefulMapConcat { () => // keep track of open markers
         val markersByOffset = new CustomPriorityQueueMap[MarkerKey, CommittableMessage[MarkerKey, MarkerValue]](valueOrdering = bySmallestOffsetAscending)
         msg => {
           msg.record.value match {
@@ -29,7 +29,7 @@ class CommitMarkerOffsetsStream(markerConsumerSettings: ConsumerSettings[MarkerK
           markersByOffset.headOption
         }
       }
-      .statefulMapConcat { () => // not sure if this step is required
+      .statefulMapConcat { () => // pass only markers with increasing offsets
         val maxOffset = new CustomHolder[Offset]()
         msg =>
           if (maxOffset.get.fold(true)(_ < msg.record.offset)) {
@@ -37,6 +37,13 @@ class CommitMarkerOffsetsStream(markerConsumerSettings: ConsumerSettings[MarkerK
             Some(msg)
           }
           else None
+      }
+      .statefulMapConcat { () => // for each new marker return previous one
+        val previousMsg = new CustomHolder[CommittableMessage[MarkerKey, MarkerValue]]()
+        msg =>
+          val prev = previousMsg.get
+          previousMsg.update(msg)
+          prev
       }
       .map(_.committableOffset)
       .mergeSubstreams
