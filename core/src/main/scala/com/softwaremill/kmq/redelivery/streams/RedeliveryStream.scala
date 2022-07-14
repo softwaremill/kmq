@@ -5,32 +5,35 @@ import akka.actor.ActorSystem
 import akka.kafka.ConsumerMessage.CommittableMessage
 import akka.kafka.scaladsl.Consumer
 import akka.kafka.scaladsl.Consumer.DrainingControl
-import akka.kafka.{CommitterSettings, ConsumerSettings, Subscriptions}
+import akka.kafka.{ConsumerSettings, Subscriptions}
 import akka.stream.scaladsl.{Sink, Source}
-import com.softwaremill.kmq.redelivery.Timestamp
-import com.softwaremill.kmq.{EndMarker, MarkerKey, MarkerValue, StartMarker}
+import com.softwaremill.kmq.redelivery.{DefaultRedeliverer, RetryingRedeliverer, Timestamp}
+import com.softwaremill.kmq._
+import org.apache.kafka.common.serialization.ByteArraySerializer
 
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.DurationInt
 
 class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, MarkerValue],
-                       markersTopic: String, maxPartitions: Int)
+                       markersTopic: String, maxPartitions: Int,
+                       kafkaClients: KafkaClients, kmqConfig: KmqConfig)
                       (implicit system: ActorSystem) {
 
-  //TODO: divertToMat
-  def run(): DrainingControl[Done] = {
-    val committerSettings = CommitterSettings(system)
+  val producer = kafkaClients.createProducer(classOf[ByteArraySerializer], classOf[ByteArraySerializer])
 
+  //TODO: need to merge this stream with CommitMarkerOffsetsStream
+  def run(): DrainingControl[Done] = {
     Consumer.committablePartitionedSource(markerConsumerSettings, Subscriptions.topics(markersTopic))
       .mapAsyncUnordered(maxPartitions) {
         case (topicPartition, source) =>
           source
             .map(MarkerRedeliveryCommand)
             .merge(Source.tick(initialDelay = 1.second, interval = 1.second, tick = TickRedeliveryCommand))
-            .statefulMapConcat { () =>
+            .statefulMapConcat { () => // keep track of open markers
               val markersByTimestamp = new CustomPriorityQueueMap[MarkerKey, CommittableMessage[MarkerKey, MarkerValue]](valueOrdering = bySmallestTimestampAscending)
               cmd => {
                 cmd match {
-                  case TickRedeliveryCommand => // pass on
+                  case TickRedeliveryCommand => // nothing to do
                   case MarkerRedeliveryCommand(msg) =>
                     msg.record.value match {
                       case _: StartMarker => markersByTimestamp.put(msg.record.key, msg)
@@ -39,19 +42,19 @@ class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, Marke
                     }
                 }
 
-                //                val head = markersByTimestamp.headOption.get
-                //                head.record.value.asInstanceOf[StartMarker].getRedeliverAfter
-
-                markersByTimestamp.headOption
+                // pass on all expired markers
+                val now = System.currentTimeMillis()
+                val toRedeliver = ArrayBuffer[CommittableMessage[MarkerKey, MarkerValue]]()
+                while (markersByTimestamp.headOption.exists(now >= _.record.value.asInstanceOf[StartMarker].getRedeliverAfter)) {
+                  toRedeliver += markersByTimestamp.dequeue()
+                }
+                toRedeliver
               }
-              //
-              //        // ... pobieram (dequeue) wszystkie markery z `markersByTimestamp`, dla których redeliverAfter < now; zwracam kolekcję markerów
-              //      }
-              //      .via {
-              //        // ... Flow z użyciem istniejącego `Redeliverer`a; Producer wysyła ponownie wiadomości i nowe `StartMarker`y z nowym redeliverAfter
-              //      }
-              //      .to(Sink.ignore) // nie commituję offsetów dla markerów
-
+            }
+            .statefulMapConcat { () => // redeliver
+              val redeliverer = new RetryingRedeliverer(new DefaultRedeliverer(topicPartition.partition, producer, kmqConfig, kafkaClients))
+              msg => redeliverer.redeliver(List(msg.record.key)) // TODO: maybe bulk redeliver
+              Some(Done)
             }
             .runWith(Sink.ignore)
       }

@@ -48,7 +48,8 @@ class RedeliveryStreamIntegrationTest extends TestKit(ActorSystem("test-system")
     Seq(1, 2, 3, 5).foreach(msg => sendToKafka(kmqConfig.getMarkerTopic, endMarker(msg)))
 
     val redeliveryStreamControl = new RedeliveryStream(markerConsumerSettings,
-      kmqConfig.getMarkerTopic, 64)
+      kmqConfig.getMarkerTopic, 64,
+      new KafkaClients(bootstrapServer), kmqConfig)
       .run()
 
     eventually {

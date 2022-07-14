@@ -27,6 +27,11 @@ class CustomPriorityQueueMap[K, V](private val valueOrdering: Ordering[V]) {
     values.headOption.map(_._2)
   }
 
+  def dequeue(): V = {
+    dequeueRemovedHeads()
+    values.dequeue()._2
+  }
+
   private def dequeueRemovedHeads(): Unit = {
     while (isHeadRemoved) {
       values.dequeue()
