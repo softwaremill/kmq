@@ -31,7 +31,7 @@ class CommitMarkerOffsetsStreamIntegrationTest extends TestKit(ActorSystem("test
   implicit val markerKeyDeserializer: Deserializer[MarkerKey] = new MarkerKey.MarkerKeyDeserializer()
   implicit val markerValueDeserializer: Deserializer[MarkerValue] = new MarkerValue.MarkerValueDeserializer()
 
-  "StartMarkerStream" should "send StartMarker for each new message" in {
+  "CommitMarkerOffsetsStream" should "commit all markers before first open StartMarker" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
     val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
@@ -49,10 +49,10 @@ class CommitMarkerOffsetsStreamIntegrationTest extends TestKit(ActorSystem("test
     createTopic(kmqConfig.getMarkerTopic)
 
     (1 to 10)
-      .foreach(msg => sendToKafka(kmqConfig.getMarkerTopic, new MarkerKey(0, msg), new StartMarker(now.toMillis + 100).asInstanceOf[MarkerValue]))
+      .foreach(msg => sendToKafka(kmqConfig.getMarkerTopic, startMarker(msg)))
 
     Seq(1, 2, 3, 5)
-      .foreach(msg => sendToKafka(kmqConfig.getMarkerTopic, new MarkerKey(0, msg), EndMarker.INSTANCE.asInstanceOf[MarkerValue]))
+      .foreach(msg => sendToKafka(kmqConfig.getMarkerTopic, endMarker(msg)))
 
     Thread.sleep(1.seconds.toMillis) //TODO: await for stream to process all markers
 
@@ -77,6 +77,12 @@ class CommitMarkerOffsetsStreamIntegrationTest extends TestKit(ActorSystem("test
     super.afterAll()
     TestKit.shutdownActorSystem(system)
   }
+
+  def startMarker(msg: Int): (MarkerKey, MarkerValue) =
+    new MarkerKey(0, msg) -> new StartMarker(now.toMillis + 100).asInstanceOf[MarkerValue]
+
+  def endMarker(msg: Int): (MarkerKey, MarkerValue) =
+    new MarkerKey(0, msg) -> EndMarker.INSTANCE.asInstanceOf[MarkerValue]
 
   def offsetsByMarkerType(markers: List[ConsumerRecord[MarkerKey, MarkerValue]]): Map[String, Seq[Offset]] = {
     markers.groupMap(_.value.getClass.getSimpleName)(_.key.getMessageOffset)

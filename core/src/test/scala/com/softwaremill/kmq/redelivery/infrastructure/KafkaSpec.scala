@@ -6,8 +6,7 @@ import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig, Produce
 import org.apache.kafka.common.serialization.{Deserializer, Serializer, StringDeserializer}
 import org.scalatest.{BeforeAndAfterEach, Suite}
 
-import java.util.concurrent.TimeUnit.SECONDS
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{DurationInt, SECONDS}
 import scala.jdk.CollectionConverters.{IterableHasAsScala, MapHasAsJava, SeqHasAsJava}
 import scala.util.{Failure, Try}
 
@@ -25,7 +24,7 @@ trait KafkaSpec extends BeforeAndAfterEach {
     EmbeddedKafka.publishStringMessageToKafka(topic, message)(testKafkaConfig)
   }
 
-  def sendToKafka[K, V](topic: String, key: K, value: V)
+  def sendToKafka[K, V](topic: String, message: (K, V))
                        (implicit keySerializer: Serializer[K], valueSerializer: Serializer[V]): Unit = {
     val props = Map[String, Object](
       ProducerConfig.BOOTSTRAP_SERVERS_CONFIG -> s"localhost:${testKafkaConfig.kafkaPort}",
@@ -34,7 +33,7 @@ trait KafkaSpec extends BeforeAndAfterEach {
     ).asJava
 
     val producer = new KafkaProducer[K, V](props, keySerializer, valueSerializer)
-    val sendFuture = producer.send(new ProducerRecord(topic, key, value))
+    val sendFuture = producer.send(new ProducerRecord(topic, message._1, message._2))
     val sendResult = Try {
       sendFuture.get(10, SECONDS)
     }
