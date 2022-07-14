@@ -10,7 +10,7 @@ import akka.stream.scaladsl.Sink
 import com.softwaremill.kmq.{MarkerKey, MarkerValue, StartMarker}
 import org.apache.kafka.clients.producer.ProducerRecord
 
-class StartMarkerStream(consumerSettings: ConsumerSettings[String, String],
+class StartMarkerStream(msgConsumerSettings: ConsumerSettings[String, String],
                         markerProducerSettings: ProducerSettings[MarkerKey, MarkerValue],
                         queueTopic: String, markersTopic: String, maxPartitions: Int, messageTimeout: Long)
                        (implicit system: ActorSystem) {
@@ -18,7 +18,7 @@ class StartMarkerStream(consumerSettings: ConsumerSettings[String, String],
   def run(): DrainingControl[Done] = {
     val committerSettings = CommitterSettings(system)
 
-    Consumer.committablePartitionedSource(consumerSettings, Subscriptions.topics(queueTopic))
+    Consumer.committablePartitionedSource(msgConsumerSettings, Subscriptions.topics(queueTopic))
       .mapAsyncUnordered(maxPartitions) {
         case (topicPartition, source) =>
           source
@@ -28,8 +28,7 @@ class StartMarkerStream(consumerSettings: ConsumerSettings[String, String],
                 msg
               )
             }
-            .via(Producer.flexiFlow(markerProducerSettings)) // TODO: handle error on sending a marker; only commit on producer success; don't commit after failed message
-
+            .via(Producer.flexiFlow(markerProducerSettings)) // TODO: handle error on sending a marker - don't commit after producer failure
             .map(_.passThrough.committableOffset)
             .runWith(Committer.sink(committerSettings))
       }

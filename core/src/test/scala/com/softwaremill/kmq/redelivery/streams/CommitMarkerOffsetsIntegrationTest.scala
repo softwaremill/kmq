@@ -22,7 +22,7 @@ import scala.concurrent.{Await, ExecutionContext}
 class CommitMarkerOffsetsIntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecLike with KafkaSpec with BeforeAndAfterAll with Eventually {
 
   implicit val materializer: Materializer = akka.stream.Materializer.matFromSystem
-  implicit val executionContext: ExecutionContext = system.dispatcher
+  implicit val ec: ExecutionContext = system.dispatcher
 
   implicit val stringSerializer: Serializer[String] = new StringSerializer()
   implicit val markerKeySerializer: Serializer[MarkerKey] = new MarkerKey.MarkerKeySerializer()
@@ -54,16 +54,21 @@ class CommitMarkerOffsetsIntegrationTest extends TestKit(ActorSystem("test-syste
     Seq(1, 2, 3, 5)
       .foreach(msg => sendToKafka(kmqConfig.getMarkerTopic, new MarkerKey(0, msg), EndMarker.INSTANCE.asInstanceOf[MarkerValue]))
 
-    Thread.sleep(10.seconds.toMillis)
-    Await.ready(commitMarkerOffsetsStreamControl.shutdown(), 60.seconds)
+    Thread.sleep(1.seconds.toMillis) //TODO: await for stream to process all markers
 
-    val markers = consumeAllFromKafkaWithoutCommit(kmqConfig.getMarkerTopic, "other")(new MarkerKey.MarkerKeyDeserializer, new MarkerValue.MarkerValueDeserializer)
-    val uncommittedMarkers = consumeAllFromKafkaWithoutCommit(kmqConfig.getMarkerTopic, kmqConfig.getRedeliveryConsumerGroupId)(new MarkerKey.MarkerKeyDeserializer, new MarkerValue.MarkerValueDeserializer)
+    // wait until stream shutdown, so there is no active consumer left with given groupId
+    Await.ready(commitMarkerOffsetsStreamControl.drainAndShutdown(), 60.seconds)
 
-    markers.size shouldBe 14
+    val markers = consumeAllFromKafkaWithoutCommit[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, "other")
+    val uncommittedMarkers = consumeAllFromKafkaWithoutCommit[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, kmqConfig.getRedeliveryConsumerGroupId)
+
+    offsetsByMarkerType(markers) should contain theSameElementsAs Map(
+      "StartMarker" -> (1 to 10),
+      "EndMarker" -> Seq(1, 2, 3, 5)
+    )
 
     offsetsByMarkerType(uncommittedMarkers) should contain theSameElementsAs Map(
-      "StartMarker" -> Seq(4, 5, 6, 7, 8, 9, 10),
+      "StartMarker" -> (4 to 10),
       "EndMarker" -> Seq(1, 2, 3, 5)
     )
   }
