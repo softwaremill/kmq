@@ -37,6 +37,8 @@ class CommitMarkerOffsetsStreamIntegrationTest extends TestKit(ActorSystem("test
     val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
       1000, 1000)
 
+    createTopic(kmqConfig.getMarkerTopic)
+
     val markerConsumerSettings = ConsumerSettings(system, markerKeyDeserializer, markerValueDeserializer)
       .withBootstrapServers(bootstrapServer)
       .withGroupId(kmqConfig.getRedeliveryConsumerGroupId)
@@ -45,8 +47,6 @@ class CommitMarkerOffsetsStreamIntegrationTest extends TestKit(ActorSystem("test
     val commitMarkerOffsetsStreamControl = new CommitMarkerOffsetsStream(markerConsumerSettings,
       kmqConfig.getMarkerTopic, 64)
       .run()
-
-    createTopic(kmqConfig.getMarkerTopic)
 
     (1 to 10)
       .foreach(msg => sendToKafka(kmqConfig.getMarkerTopic, startMarker(msg)))

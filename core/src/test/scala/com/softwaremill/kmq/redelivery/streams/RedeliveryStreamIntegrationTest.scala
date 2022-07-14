@@ -16,6 +16,7 @@ import org.scalatest.time.{Seconds, Span}
 
 import java.util.UUID
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.DurationInt
 
 class RedeliveryStreamIntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecLike with KafkaSpec with BeforeAndAfterAll with Eventually {
 
@@ -36,21 +37,24 @@ class RedeliveryStreamIntegrationTest extends TestKit(ActorSystem("test-system")
     val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
       1000, 1000, s"${uid}__undelivered", "kmq-redelivery-count", maxRedeliveryCount)
 
+    createTopic(kmqConfig.getMsgTopic)
+    createTopic(kmqConfig.getMarkerTopic)
+
     val markerConsumerSettings = ConsumerSettings(system, markerKeyDeserializer, markerValueDeserializer)
       .withBootstrapServers(bootstrapServer)
       .withGroupId(kmqConfig.getRedeliveryConsumerGroupId)
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
+
+    val redeliveryStreamControl = new RedeliveryStream(markerConsumerSettings,
+      kmqConfig.getMarkerTopic, 64,
+      new KafkaClients(bootstrapServer), kmqConfig)
+      .run()
 
     (1 to 10).foreach(msg => sendToKafka(kmqConfig.getMsgTopic, msg.toString))
 
     (1 to 10).foreach(msg => sendToKafka(kmqConfig.getMarkerTopic, startMarker(msg)))
 
     Seq(1, 2, 3, 5).foreach(msg => sendToKafka(kmqConfig.getMarkerTopic, endMarker(msg)))
-
-    val redeliveryStreamControl = new RedeliveryStream(markerConsumerSettings,
-      kmqConfig.getMarkerTopic, 64,
-      new KafkaClients(bootstrapServer), kmqConfig)
-      .run()
 
     eventually {
       consumeAllFromKafkaWithoutCommit[String, String](kmqConfig.getMsgTopic, "other").size shouldBe 16

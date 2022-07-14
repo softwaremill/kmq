@@ -53,8 +53,10 @@ class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, Marke
             }
             .statefulMapConcat { () => // redeliver
               val redeliverer = new RetryingRedeliverer(new DefaultRedeliverer(topicPartition.partition, producer, kmqConfig, kafkaClients))
-              msg => redeliverer.redeliver(List(msg.record.key)) // TODO: maybe bulk redeliver
-              Some(Done)
+              msg => {
+                redeliverer.redeliver(List(msg.record.key)) // TODO: maybe bulk redeliver
+                Some(msg)
+              }
             }
             .runWith(Sink.ignore)
       }
