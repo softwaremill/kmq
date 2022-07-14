@@ -19,7 +19,7 @@ import java.util.UUID
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContext}
 
-class CommitMarkerOffsetsIntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecLike with KafkaSpec with BeforeAndAfterAll with Eventually {
+class CommitMarkerOffsetsStreamIntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecLike with KafkaSpec with BeforeAndAfterAll with Eventually {
 
   implicit val materializer: Materializer = akka.stream.Materializer.matFromSystem
   implicit val ec: ExecutionContext = system.dispatcher
