@@ -35,7 +35,7 @@ class CommitMarkerOffsetsStream(markerConsumerSettings: ConsumerSettings[MarkerK
             .statefulMapConcat { () => // deduplicate - pass only markers with increasing offsets
               val maxOffset = new CustomHolder[Offset]()
               msg =>
-                if (maxOffset.get.fold(true)(_ < msg.record.offset)) {
+                if (!maxOffset.getOption.exists(_ >= msg.record.offset)) {
                   maxOffset.update(msg.record.offset)
                   Some(msg)
                 }
@@ -44,7 +44,7 @@ class CommitMarkerOffsetsStream(markerConsumerSettings: ConsumerSettings[MarkerK
             .statefulMapConcat { () => // for each new marker return previous one
               val previousMsg = new CustomHolder[CommittableMessage[MarkerKey, MarkerValue]]()
               msg =>
-                val prev = previousMsg.get
+                val prev = previousMsg.getOption
                 previousMsg.update(msg)
                 prev
             }

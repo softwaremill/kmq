@@ -7,7 +7,7 @@ package com.softwaremill.kmq.redelivery.streams
 class CustomHolder[V] {
   private var value: Option[V] = None
 
-  def get: Option[V] = value
+  def getOption: Option[V] = value
 
   def update(newValue: V): Unit = value = Some(newValue)
 }
