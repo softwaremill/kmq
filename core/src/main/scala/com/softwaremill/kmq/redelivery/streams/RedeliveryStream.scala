@@ -20,7 +20,7 @@ class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, Marke
                        kafkaClients: KafkaClients, kmqConfig: KmqConfig)
                       (implicit system: ActorSystem) extends StrictLogging {
 
-  val producer = kafkaClients.createProducer(classOf[ByteArraySerializer], classOf[ByteArraySerializer])
+  private val producer = kafkaClients.createProducer(classOf[ByteArraySerializer], classOf[ByteArraySerializer])
 
   //TODO: need to merge this stream with CommitMarkerOffsetsStream
   def run(): DrainingControl[Done] = {
@@ -33,11 +33,10 @@ class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, Marke
             .statefulMapConcat { () => // keep track of open markers
               val markersByTimestamp = new CustomPriorityQueueMap[MarkerKey, CommittableMessage[MarkerKey, MarkerValue]](valueOrdering = bySmallestTimestampAscending)
               cmd => {
+                logCommand(cmd)
                 cmd match {
-                  case TickRedeliveryCommand =>
-                    logger.trace(s"command: Tick")
+                  case TickRedeliveryCommand => // nothing to do
                   case MarkerRedeliveryCommand(msg) =>
-                    logger.trace(s"command: ${markerToLogger(msg)})")
                     msg.record.value match {
                       case _: StartMarker => markersByTimestamp.put(msg.record.key, msg)
                       case _: EndMarker => markersByTimestamp.remove(msg.record.key)
@@ -47,16 +46,13 @@ class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, Marke
 
                 // pass on all expired markers
                 val now = System.currentTimeMillis()
-                markersByTimestamp.headOption match {
-                  case Some(msg) => logger.trace(s"headOption: Some(${markerToLogger(msg)}), ${redeliveryTimeToLogger(msg, now)}")
-                  case None => logger.trace("headOption: None")
-                }
+                logHeadOption(markersByTimestamp, now)
 
                 val toRedeliver = ArrayBuffer[CommittableMessage[MarkerKey, MarkerValue]]()
                 while (markersByTimestamp.headOption.exists(now >= _.record.value.asInstanceOf[StartMarker].getRedeliverAfter)) {
                   toRedeliver += markersByTimestamp.dequeue()
                 }
-                logger.trace(s"toRedeliver: ${toRedeliver.map(markerToLogger)}")
+                logToRedeliver(toRedeliver)
                 toRedeliver
               }
             }
@@ -75,6 +71,30 @@ class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, Marke
 
   private def bySmallestTimestampAscending(implicit ord: Ordering[Timestamp]): Ordering[CommittableMessage[MarkerKey, MarkerValue]] =
     (x, y) => ord.compare(y.record.value.asInstanceOf[StartMarker].getRedeliverAfter, x.record.value.asInstanceOf[StartMarker].getRedeliverAfter)
+
+  private def logCommand(cmd: RedeliveryCommand): Unit = {
+    logger.whenTraceEnabled {
+      cmd match {
+        case TickRedeliveryCommand => logger.trace(s"command: Tick")
+        case MarkerRedeliveryCommand(msg) => logger.trace(s"command: ${markerToLogger(msg)})")
+      }
+    }
+  }
+
+  private def logHeadOption(markersByTimestamp: CustomPriorityQueueMap[MarkerKey, CommittableMessage[MarkerKey, MarkerValue]], now: Timestamp): Unit = {
+    logger.whenTraceEnabled {
+      markersByTimestamp.headOption match {
+        case Some(msg) => logger.trace(s"headOption: Some(${markerToLogger(msg)}), ${redeliveryTimeToLogger(msg, now)}")
+        case None => logger.trace("headOption: None")
+      }
+    }
+  }
+
+  private def logToRedeliver(toRedeliver: Iterable[CommittableMessage[MarkerKey, MarkerValue]]): Unit = {
+    logger.whenTraceEnabled {
+      logger.trace(s"toRedeliver: ${toRedeliver.map(markerToLogger)}")
+    }
+  }
 
   private def markerToLogger(msg: CommittableMessage[MarkerKey, MarkerValue]): String =
     s"${msg.record.value.getClass.getSimpleName}(${msg.record.key.getPartition}, ${msg.record.key.getMessageOffset})"
