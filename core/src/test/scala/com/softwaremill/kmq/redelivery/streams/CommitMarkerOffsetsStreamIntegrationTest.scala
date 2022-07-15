@@ -62,12 +62,12 @@ class CommitMarkerOffsetsStreamIntegrationTest extends TestKit(ActorSystem("test
     val markers = consumeAllFromKafkaWithoutCommit[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, "other")
     val uncommittedMarkers = consumeAllFromKafkaWithoutCommit[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, kmqConfig.getRedeliveryConsumerGroupId)
 
-    offsetsByMarkerType(markers) should contain theSameElementsAs Map(
+    markers.groupByTypeAndMapToOffset() should contain theSameElementsAs Map(
       "StartMarker" -> (1 to 10),
       "EndMarker" -> Seq(1, 2, 3, 5)
     )
 
-    offsetsByMarkerType(uncommittedMarkers) should contain theSameElementsAs Map(
+    uncommittedMarkers.groupByTypeAndMapToOffset() should contain theSameElementsAs Map(
       "StartMarker" -> (4 to 10),
       "EndMarker" -> Seq(1, 2, 3, 5)
     )
@@ -84,7 +84,9 @@ class CommitMarkerOffsetsStreamIntegrationTest extends TestKit(ActorSystem("test
   def endMarker(msg: Int): (MarkerKey, MarkerValue) =
     new MarkerKey(0, msg) -> EndMarker.INSTANCE.asInstanceOf[MarkerValue]
 
-  def offsetsByMarkerType(markers: List[ConsumerRecord[MarkerKey, MarkerValue]]): Map[String, Seq[Offset]] = {
-    markers.groupMap(_.value.getClass.getSimpleName)(_.key.getMessageOffset)
+  implicit class GroupByTypeAndMapToOffsetOperation(markers: Seq[ConsumerRecord[MarkerKey, MarkerValue]]) {
+    def groupByTypeAndMapToOffset(): Map[String, Seq[Offset]] = {
+      markers.groupMap(_.value.getClass.getSimpleName)(_.key.getMessageOffset)
+    }
   }
 }
