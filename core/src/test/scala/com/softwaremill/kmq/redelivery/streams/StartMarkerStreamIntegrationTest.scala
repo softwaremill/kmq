@@ -37,9 +37,6 @@ class StartMarkerStreamIntegrationTest extends TestKit(ActorSystem("test-system"
     val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
       1000, 1000)
 
-    createTopic(kmqConfig.getMsgTopic)
-    createTopic(kmqConfig.getMarkerTopic)
-
     val msgConsumerSettings = ConsumerSettings(system, stringDeserializer, stringDeserializer)
       .withBootstrapServers(bootstrapServer)
       .withGroupId(kmqConfig.getMsgConsumerGroupId)
@@ -52,6 +49,9 @@ class StartMarkerStreamIntegrationTest extends TestKit(ActorSystem("test-system"
     val startMarkerStreamControl = new StartMarkerStream(msgConsumerSettings, markerProducerSettings,
       kmqConfig.getMsgTopic, kmqConfig.getMarkerTopic, 64, 3.second.toMillis)
       .run()
+
+    createTopic(kmqConfig.getMsgTopic)
+    createTopic(kmqConfig.getMarkerTopic)
 
     (1 to 10)
       .map(_.toString)

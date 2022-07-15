@@ -16,7 +16,6 @@ import org.scalatest.time.{Seconds, Span}
 
 import java.util.UUID
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.DurationInt
 
 class RedeliveryStreamIntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecLike with KafkaSpec with BeforeAndAfterAll with Eventually {
 
@@ -34,11 +33,9 @@ class RedeliveryStreamIntegrationTest extends TestKit(ActorSystem("test-system")
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
     val maxRedeliveryCount = 1
+    val redeliverAfterMs = 300
     val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
       1000, 1000, s"${uid}__undelivered", "kmq-redelivery-count", maxRedeliveryCount)
-
-    createTopic(kmqConfig.getMsgTopic)
-    createTopic(kmqConfig.getMarkerTopic)
 
     val markerConsumerSettings = ConsumerSettings(system, markerKeyDeserializer, markerValueDeserializer)
       .withBootstrapServers(bootstrapServer)
@@ -50,16 +47,19 @@ class RedeliveryStreamIntegrationTest extends TestKit(ActorSystem("test-system")
       new KafkaClients(bootstrapServer), kmqConfig)
       .run()
 
-    (1 to 10).foreach(msg => sendToKafka(kmqConfig.getMsgTopic, msg.toString))
+    createTopic(kmqConfig.getMsgTopic)
+    createTopic(kmqConfig.getMarkerTopic)
 
-    (1 to 10).foreach(msg => sendToKafka(kmqConfig.getMarkerTopic, startMarker(msg)))
+    (0 to 9).foreach(msg => sendToKafka(kmqConfig.getMsgTopic, msg.toString))
 
-    Seq(1, 2, 3, 5).foreach(msg => sendToKafka(kmqConfig.getMarkerTopic, endMarker(msg)))
+    (0 to 9).foreach(msgOffset => sendToKafka(kmqConfig.getMarkerTopic, startMarker(msgOffset, redeliverAfterMs)))
+
+    Seq(0, 1, 2, 5).foreach(msgOffset => sendToKafka(kmqConfig.getMarkerTopic, endMarker(msgOffset)))
 
     eventually {
       consumeAllFromKafkaWithoutCommit[String, String](kmqConfig.getMsgTopic, "other").size shouldBe 16
       consumeAllFromKafkaWithoutCommit[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, "other").size shouldBe 20
-    }(PatienceConfig(timeout = Span(15, Seconds)), implicitly, implicitly)
+    }(PatienceConfig(timeout = Span(30, Seconds)), implicitly, implicitly)
 
     redeliveryStreamControl.drainAndShutdown()
   }
@@ -69,9 +69,9 @@ class RedeliveryStreamIntegrationTest extends TestKit(ActorSystem("test-system")
     TestKit.shutdownActorSystem(system)
   }
 
-  def startMarker(msg: Int): (MarkerKey, MarkerValue) =
-    new MarkerKey(0, msg) -> new StartMarker(now.toMillis + 100).asInstanceOf[MarkerValue]
+  def startMarker(msgOffset: Int, redeliverAfterMs: Long): (MarkerKey, MarkerValue) =
+    new MarkerKey(0, msgOffset) -> new StartMarker(System.currentTimeMillis + redeliverAfterMs).asInstanceOf[MarkerValue]
 
-  def endMarker(msg: Int): (MarkerKey, MarkerValue) =
-    new MarkerKey(0, msg) -> EndMarker.INSTANCE.asInstanceOf[MarkerValue]
+  def endMarker(msgOffset: Int): (MarkerKey, MarkerValue) =
+    new MarkerKey(0, msgOffset) -> EndMarker.INSTANCE.asInstanceOf[MarkerValue]
 }

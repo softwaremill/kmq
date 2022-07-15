@@ -6,7 +6,7 @@
         </encoder>
     </appender>
 
-    <logger name="com.softwaremill.kmq" level="debug" />
+    <logger name="com.softwaremill.kmq" level="trace" />
     <logger name="org.apache.kafka.clients" level="warn" />
 
     <root level="warn">

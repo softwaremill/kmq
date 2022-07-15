@@ -7,8 +7,9 @@ import akka.kafka.scaladsl.Consumer
 import akka.kafka.scaladsl.Consumer.DrainingControl
 import akka.kafka.{ConsumerSettings, Subscriptions}
 import akka.stream.scaladsl.{Sink, Source}
-import com.softwaremill.kmq.redelivery.{DefaultRedeliverer, RetryingRedeliverer, Timestamp}
 import com.softwaremill.kmq._
+import com.softwaremill.kmq.redelivery.{DefaultRedeliverer, RetryingRedeliverer, Timestamp}
+import com.typesafe.scalalogging.StrictLogging
 import org.apache.kafka.common.serialization.ByteArraySerializer
 
 import scala.collection.mutable.ArrayBuffer
@@ -17,7 +18,7 @@ import scala.concurrent.duration.DurationInt
 class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, MarkerValue],
                        markersTopic: String, maxPartitions: Int,
                        kafkaClients: KafkaClients, kmqConfig: KmqConfig)
-                      (implicit system: ActorSystem) {
+                      (implicit system: ActorSystem) extends StrictLogging {
 
   val producer = kafkaClients.createProducer(classOf[ByteArraySerializer], classOf[ByteArraySerializer])
 
@@ -33,8 +34,10 @@ class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, Marke
               val markersByTimestamp = new CustomPriorityQueueMap[MarkerKey, CommittableMessage[MarkerKey, MarkerValue]](valueOrdering = bySmallestTimestampAscending)
               cmd => {
                 cmd match {
-                  case TickRedeliveryCommand => // nothing to do
+                  case TickRedeliveryCommand =>
+                    logger.trace(s"command: Tick")
                   case MarkerRedeliveryCommand(msg) =>
+                    logger.trace(s"command: ${markerToLogger(msg)})")
                     msg.record.value match {
                       case _: StartMarker => markersByTimestamp.put(msg.record.key, msg)
                       case _: EndMarker => markersByTimestamp.remove(msg.record.key)
@@ -44,10 +47,16 @@ class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, Marke
 
                 // pass on all expired markers
                 val now = System.currentTimeMillis()
+                markersByTimestamp.headOption match {
+                  case Some(msg) => logger.trace(s"headOption: Some(${markerToLogger(msg)}), ${redeliveryTimeToLogger(msg, now)}")
+                  case None => logger.trace("headOption: None")
+                }
+
                 val toRedeliver = ArrayBuffer[CommittableMessage[MarkerKey, MarkerValue]]()
                 while (markersByTimestamp.headOption.exists(now >= _.record.value.asInstanceOf[StartMarker].getRedeliverAfter)) {
                   toRedeliver += markersByTimestamp.dequeue()
                 }
+                logger.trace(s"toRedeliver: ${toRedeliver.map(markerToLogger)}")
                 toRedeliver
               }
             }
@@ -64,8 +73,14 @@ class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, Marke
       .run()
   }
 
-  def bySmallestTimestampAscending(implicit ord: Ordering[Timestamp]): Ordering[CommittableMessage[MarkerKey, MarkerValue]] =
+  private def bySmallestTimestampAscending(implicit ord: Ordering[Timestamp]): Ordering[CommittableMessage[MarkerKey, MarkerValue]] =
     (x, y) => ord.compare(y.record.value.asInstanceOf[StartMarker].getRedeliverAfter, x.record.value.asInstanceOf[StartMarker].getRedeliverAfter)
+
+  private def markerToLogger(msg: CommittableMessage[MarkerKey, MarkerValue]): String =
+    s"${msg.record.value.getClass.getSimpleName}(${msg.record.key.getPartition}, ${msg.record.key.getMessageOffset})"
+
+  private def redeliveryTimeToLogger(msg: CommittableMessage[MarkerKey, MarkerValue], now: Timestamp): String =
+    s"expected redelivery in = ${msg.record.value.asInstanceOf[StartMarker].getRedeliverAfter - now}ms"
 
   sealed trait RedeliveryCommand
   case object TickRedeliveryCommand extends RedeliveryCommand
