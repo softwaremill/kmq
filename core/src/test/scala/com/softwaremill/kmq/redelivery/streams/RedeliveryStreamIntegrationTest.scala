@@ -42,7 +42,7 @@ class RedeliveryStreamIntegrationTest extends TestKit(ActorSystem("test-system")
       .withGroupId(kmqConfig.getRedeliveryConsumerGroupId)
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
 
-    val redeliveryStreamControl = new RedeliveryStream(markerConsumerSettings,
+    val redeliveryStreamControl = new RedeliverySimpleStream(markerConsumerSettings,
       kmqConfig.getMarkerTopic, 64,
       new KafkaClients(bootstrapServer), kmqConfig)
       .run()

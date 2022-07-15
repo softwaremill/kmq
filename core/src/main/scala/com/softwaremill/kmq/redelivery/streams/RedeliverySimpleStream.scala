@@ -6,7 +6,7 @@ import akka.kafka.ConsumerMessage.CommittableMessage
 import akka.kafka.scaladsl.Consumer
 import akka.kafka.scaladsl.Consumer.DrainingControl
 import akka.kafka.{ConsumerSettings, Subscriptions}
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.scaladsl.{Keep, Sink, Source}
 import com.softwaremill.kmq._
 import com.softwaremill.kmq.redelivery.{DefaultRedeliverer, RetryingRedeliverer, Timestamp}
 import com.typesafe.scalalogging.StrictLogging
@@ -15,10 +15,10 @@ import org.apache.kafka.common.serialization.ByteArraySerializer
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.DurationInt
 
-class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, MarkerValue],
-                       markersTopic: String, maxPartitions: Int,
-                       kafkaClients: KafkaClients, kmqConfig: KmqConfig)
-                      (implicit system: ActorSystem) extends StrictLogging {
+class RedeliverySimpleStream(markerConsumerSettings: ConsumerSettings[MarkerKey, MarkerValue],
+                             markersTopic: String, maxPartitions: Int,
+                             kafkaClients: KafkaClients, kmqConfig: KmqConfig)
+                            (implicit system: ActorSystem) extends StrictLogging {
 
   private val producer = kafkaClients.createProducer(classOf[ByteArraySerializer], classOf[ByteArraySerializer])
 
@@ -63,7 +63,8 @@ class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, Marke
                 Some(Done)
               }
             }
-            .runWith(Sink.ignore)
+            .toMat(Sink.ignore)(Keep.right)
+            .run()
       }
       .toMat(Sink.ignore)(DrainingControl.apply)
       .run()

@@ -60,8 +60,8 @@ class FooTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecLike w
           import GraphDSL.Implicits._
           val broadcast = builder.add(Broadcast[Int](2))
           source ~> broadcast
-          broadcast.out(0) ~> Flow[Int].async~> mult2
-          broadcast.out(1) ~> Flow[Int].async~> mult3
+          broadcast.out(0) ~> Flow[Int].async ~> mult2
+          broadcast.out(1) ~> Flow[Int].async ~> mult3
           ClosedShape
       })
       .run()

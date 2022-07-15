@@ -6,7 +6,7 @@ import akka.kafka.ConsumerMessage.CommittableMessage
 import akka.kafka.scaladsl.Consumer.DrainingControl
 import akka.kafka.scaladsl.{Committer, Consumer}
 import akka.kafka.{CommitterSettings, ConsumerSettings, Subscriptions}
-import akka.stream.scaladsl.Sink
+import akka.stream.scaladsl.{Keep, Sink}
 import com.softwaremill.kmq.redelivery.Offset
 import com.softwaremill.kmq.{EndMarker, MarkerKey, MarkerValue, StartMarker}
 
@@ -49,7 +49,9 @@ class CommitMarkerOffsetsStream(markerConsumerSettings: ConsumerSettings[MarkerK
                 prev
             }
             .map(_.committableOffset)
-            .runWith(Committer.sink(committerSettings))
+            .via(Committer.flow(committerSettings))
+            .toMat(Sink.ignore)(Keep.right)
+            .run()
       }
       .toMat(Sink.ignore)(DrainingControl.apply)
       .run()
