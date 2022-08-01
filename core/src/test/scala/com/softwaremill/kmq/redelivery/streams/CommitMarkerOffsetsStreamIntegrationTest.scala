@@ -78,11 +78,11 @@ class CommitMarkerOffsetsStreamIntegrationTest extends TestKit(ActorSystem("test
     TestKit.shutdownActorSystem(system)
   }
 
-  def startMarker(msg: Int): (MarkerKey, MarkerValue) =
-    new MarkerKey(0, msg) -> new StartMarker(now.toMillis + 100).asInstanceOf[MarkerValue]
+  def startMarker(msgOffset: Int): (MarkerKey, MarkerValue) =
+    new MarkerKey(0, msgOffset) -> new StartMarker(System.currentTimeMillis() + 100).asInstanceOf[MarkerValue]
 
-  def endMarker(msg: Int): (MarkerKey, MarkerValue) =
-    new MarkerKey(0, msg) -> EndMarker.INSTANCE.asInstanceOf[MarkerValue]
+  def endMarker(msgOffset: Int): (MarkerKey, MarkerValue) =
+    new MarkerKey(0, msgOffset) -> EndMarker.INSTANCE.asInstanceOf[MarkerValue]
 
   implicit class GroupByTypeAndMapToOffsetOperation(markers: Seq[ConsumerRecord[MarkerKey, MarkerValue]]) {
     def groupByTypeAndMapToOffset(): Map[String, Seq[Offset]] = {

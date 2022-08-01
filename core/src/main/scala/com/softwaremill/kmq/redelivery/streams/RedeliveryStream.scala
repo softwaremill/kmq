@@ -15,8 +15,8 @@ import com.typesafe.scalalogging.{Logger, StrictLogging}
 import org.apache.kafka.common.serialization.ByteArraySerializer
 
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.DurationInt
+import scala.concurrent.{ExecutionContext, Future}
 
 class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, MarkerValue],
                        markersTopic: String, maxPartitions: Int,
@@ -33,7 +33,7 @@ class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, Marke
       .mapAsyncUnordered(maxPartitions) {
         case (topicPartition, source) =>
 
-          val redeliverySink = source
+          val redeliverySink = Flow[CommittableMessage[MarkerKey, MarkerValue]]
             .map(MarkerRedeliveryCommand)
             .merge(Source.tick(initialDelay = 1.second, interval = 1.second, tick = TickRedeliveryCommand))
             .statefulMapConcat { () => // keep track of open markers
@@ -70,9 +70,8 @@ class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, Marke
               }
             }
             .toMat(Sink.ignore)(Keep.right)
-            .asInstanceOf[Sink[CommittableMessage[MarkerKey, MarkerValue], Future[Done]]] //TODO: cast should be unnecessary
 
-          val commitMarkerOffsetsSink = source
+          val commitMarkerOffsetsSink = Flow[CommittableMessage[MarkerKey, MarkerValue]]
             .statefulMapConcat { () => // keep track of open markers
               val markersByOffset = new CustomPriorityQueueMap[MarkerKey, CommittableMessage[MarkerKey, MarkerValue]](valueOrdering = bySmallestOffsetAscending)
               msg => {
@@ -103,7 +102,6 @@ class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, Marke
             .map(_.committableOffset)
             .via(Committer.flow(committerSettings))
             .toMat(Sink.ignore)(Keep.right)
-            .asInstanceOf[Sink[CommittableMessage[MarkerKey, MarkerValue], Future[Done]]] //TODO: cast should be unnecessary
 
           RunnableGraph
             .fromGraph(GraphDSL.createGraph(redeliverySink, commitMarkerOffsetsSink)(combineFutures) {

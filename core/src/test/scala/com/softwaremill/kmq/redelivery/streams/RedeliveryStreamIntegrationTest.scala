@@ -5,17 +5,21 @@ import akka.kafka.ConsumerSettings
 import akka.stream.Materializer
 import akka.testkit.TestKit
 import com.softwaremill.kmq._
+import com.softwaremill.kmq.redelivery.Offset
 import com.softwaremill.kmq.redelivery.infrastructure.KafkaSpec
+import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.{Deserializer, Serializer, StringDeserializer, StringSerializer}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.must.Matchers.contain
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.time.{Seconds, Span}
 
 import java.util.UUID
-import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.{Await, ExecutionContext}
 
 class RedeliveryStreamIntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecLike with KafkaSpec with BeforeAndAfterAll with Eventually {
 
@@ -64,6 +68,48 @@ class RedeliveryStreamIntegrationTest extends TestKit(ActorSystem("test-system")
     redeliveryStreamControl.drainAndShutdown()
   }
 
+  "CommitMarkerOffsetsStream" should "commit all markers before first open StartMarker" in {
+    val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
+    val uid = UUID.randomUUID().toString
+    val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
+      1000, 1000)
+
+    val markerConsumerSettings = ConsumerSettings(system, markerKeyDeserializer, markerValueDeserializer)
+      .withBootstrapServers(bootstrapServer)
+      .withGroupId(kmqConfig.getRedeliveryConsumerGroupId)
+      .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
+
+    val commitMarkerOffsetsStreamControl = new CommitMarkerOffsetsStream(markerConsumerSettings,
+      kmqConfig.getMarkerTopic, 64)
+      .run()
+
+    createTopic(kmqConfig.getMarkerTopic)
+
+    (1 to 10)
+      .foreach(msg => sendToKafka(kmqConfig.getMarkerTopic, startMarker(msg)))
+
+    Seq(1, 2, 3, 5)
+      .foreach(msg => sendToKafka(kmqConfig.getMarkerTopic, endMarker(msg)))
+
+    Thread.sleep(1.seconds.toMillis) //TODO: await for stream to process all markers
+
+    // wait until stream shutdown, so there is no active consumer left with given groupId
+    Await.ready(commitMarkerOffsetsStreamControl.drainAndShutdown(), 60.seconds)
+
+    val markers = consumeAllFromKafkaWithoutCommit[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, "other")
+    val uncommittedMarkers = consumeAllFromKafkaWithoutCommit[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, kmqConfig.getRedeliveryConsumerGroupId)
+
+    markers.groupByTypeAndMapToOffset() should contain theSameElementsAs Map(
+      "StartMarker" -> (1 to 10),
+      "EndMarker" -> Seq(1, 2, 3, 5)
+    )
+
+    uncommittedMarkers.groupByTypeAndMapToOffset() should contain theSameElementsAs Map(
+      "StartMarker" -> (4 to 10),
+      "EndMarker" -> Seq(1, 2, 3, 5)
+    )
+  }
+
   override def afterAll(): Unit = {
     super.afterAll()
     TestKit.shutdownActorSystem(system)
@@ -72,6 +118,14 @@ class RedeliveryStreamIntegrationTest extends TestKit(ActorSystem("test-system")
   def startMarker(msgOffset: Int, redeliverAfterMs: Long): (MarkerKey, MarkerValue) =
     new MarkerKey(0, msgOffset) -> new StartMarker(System.currentTimeMillis + redeliverAfterMs).asInstanceOf[MarkerValue]
 
-  def endMarker(msgOffset: Int): (MarkerKey, MarkerValue) =
-    new MarkerKey(0, msgOffset) -> EndMarker.INSTANCE.asInstanceOf[MarkerValue]
+  def startMarker(msgOffset: Int): (MarkerKey, MarkerValue) = startMarker(msgOffset, 100)
+
+  def endMarker(msg: Int): (MarkerKey, MarkerValue) =
+    new MarkerKey(0, msg) -> EndMarker.INSTANCE.asInstanceOf[MarkerValue]
+
+  implicit class GroupByTypeAndMapToOffsetOperation(markers: Seq[ConsumerRecord[MarkerKey, MarkerValue]]) {
+    def groupByTypeAndMapToOffset(): Map[String, Seq[Offset]] = {
+      markers.groupMap(_.value.getClass.getSimpleName)(_.key.getMessageOffset)
+    }
+  }
 }
