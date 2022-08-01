@@ -8,7 +8,7 @@ import akka.kafka.scaladsl.Consumer.DrainingControl
 import akka.kafka.{ConsumerSettings, Subscriptions}
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import com.softwaremill.kmq._
-import com.softwaremill.kmq.redelivery.streams.RedeliverySimpleStream._
+import com.softwaremill.kmq.redelivery.streams.RedeliveryStream._
 import com.softwaremill.kmq.redelivery.{DefaultRedeliverer, Partition, RetryingRedeliverer, Timestamp}
 import com.typesafe.scalalogging.{Logger, StrictLogging}
 import org.apache.kafka.common.serialization.ByteArraySerializer
@@ -17,10 +17,10 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
-class RedeliverySimpleStream(markerConsumerSettings: ConsumerSettings[MarkerKey, MarkerValue],
-                             markersTopic: String, maxPartitions: Int,
-                             kafkaClients: KafkaClients, kmqConfig: KmqConfig)
-                            (implicit system: ActorSystem) extends StrictLogging {
+class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, MarkerValue],
+                       markersTopic: String, maxPartitions: Int,
+                       kafkaClients: KafkaClients, kmqConfig: KmqConfig)
+                      (implicit system: ActorSystem) extends StrictLogging {
 
   private val producer = kafkaClients.createProducer(classOf[ByteArraySerializer], classOf[ByteArraySerializer])
 
@@ -80,7 +80,7 @@ class RedeliverySimpleStream(markerConsumerSettings: ConsumerSettings[MarkerKey,
     (x, y) => ord.compare(y.record.value.asInstanceOf[StartMarker].getRedeliverAfter, x.record.value.asInstanceOf[StartMarker].getRedeliverAfter)
 }
 
-object RedeliverySimpleStream {
+object RedeliveryStream {
 
   sealed trait RedeliveryCommand
   case object TickRedeliveryCommand extends RedeliveryCommand

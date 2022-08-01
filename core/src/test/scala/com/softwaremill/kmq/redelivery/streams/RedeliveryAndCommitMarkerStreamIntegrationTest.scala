@@ -32,7 +32,7 @@ class RedeliveryAndCommitMarkerStreamIntegrationTest extends TestKit(ActorSystem
   implicit val markerKeyDeserializer: Deserializer[MarkerKey] = new MarkerKey.MarkerKeyDeserializer()
   implicit val markerValueDeserializer: Deserializer[MarkerValue] = new MarkerValue.MarkerValueDeserializer()
 
-  "RedeliveryStream" should "redeliver unprocessed messages" in {
+  "RedeliveryAndCommitMarkerStream" should "redeliver unprocessed messages" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
     val maxRedeliveryCount = 1
@@ -67,7 +67,7 @@ class RedeliveryAndCommitMarkerStreamIntegrationTest extends TestKit(ActorSystem
     redeliveryStreamControl.drainAndShutdown()
   }
 
-  "RedeliveryStream" should "commit all markers before first open StartMarker" in {
+  "RedeliveryAndCommitMarkerStream" should "commit all markers before first open StartMarker" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
     val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",

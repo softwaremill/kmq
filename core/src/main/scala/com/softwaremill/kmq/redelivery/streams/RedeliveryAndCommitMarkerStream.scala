@@ -18,7 +18,7 @@ class RedeliveryAndCommitMarkerStream(markerConsumerSettings: ConsumerSettings[M
                                       kafkaClients: KafkaClients, kmqConfig: KmqConfig)
                                      (implicit system: ActorSystem, ec: ExecutionContext) extends StrictLogging {
 
-  private val redeliverStream = new RedeliverySimpleStream(markerConsumerSettings, markersTopic, maxPartitions, kafkaClients, kmqConfig)
+  private val redeliveryStream = new RedeliveryStream(markerConsumerSettings, markersTopic, maxPartitions, kafkaClients, kmqConfig)
   private val commitMarkerStream = new CommitMarkerStream(markerConsumerSettings, markersTopic, maxPartitions)
 
   // TODO: should combine functionality of RedeliverSimpleStream and CommitMarkerStream
@@ -27,7 +27,7 @@ class RedeliveryAndCommitMarkerStream(markerConsumerSettings: ConsumerSettings[M
       .mapAsyncUnordered(maxPartitions) {
         case (topicPartition, source) =>
 
-          val redeliverySink = redeliverStream.redeliverySink(topicPartition.partition)
+          val redeliverySink = redeliveryStream.redeliverySink(topicPartition.partition)
           val commitMarkerSink = commitMarkerStream.commitMarkerSink()
 
           RunnableGraph

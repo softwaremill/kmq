@@ -17,7 +17,7 @@ import org.scalatest.time.{Seconds, Span}
 import java.util.UUID
 import scala.concurrent.ExecutionContext
 
-class RedeliverySimpleStreamIntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecLike with KafkaSpec with BeforeAndAfterAll with Eventually {
+class RedeliveryStreamIntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecLike with KafkaSpec with BeforeAndAfterAll with Eventually {
 
   implicit val materializer: Materializer = akka.stream.Materializer.matFromSystem
   implicit val ec: ExecutionContext = system.dispatcher
@@ -29,7 +29,7 @@ class RedeliverySimpleStreamIntegrationTest extends TestKit(ActorSystem("test-sy
   implicit val markerKeyDeserializer: Deserializer[MarkerKey] = new MarkerKey.MarkerKeyDeserializer()
   implicit val markerValueDeserializer: Deserializer[MarkerValue] = new MarkerValue.MarkerValueDeserializer()
 
-  "RedeliverySimpleStream" should "redeliver unprocessed messages" in {
+  "RedeliveryStream" should "redeliver unprocessed messages" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
     val maxRedeliveryCount = 1
@@ -42,7 +42,7 @@ class RedeliverySimpleStreamIntegrationTest extends TestKit(ActorSystem("test-sy
       .withGroupId(kmqConfig.getRedeliveryConsumerGroupId)
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
 
-    val redeliveryStreamControl = new RedeliverySimpleStream(markerConsumerSettings,
+    val redeliveryStreamControl = new RedeliveryStream(markerConsumerSettings,
       kmqConfig.getMarkerTopic, 64,
       new KafkaClients(bootstrapServer), kmqConfig)
       .run()
