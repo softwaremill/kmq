@@ -20,7 +20,7 @@ import org.scalatest.time.{Seconds, Span}
 import java.util.UUID
 import scala.concurrent.ExecutionContext
 
-class RedeliveryStreamIntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecLike with KafkaSpec with BeforeAndAfterAll with Eventually {
+class RedeliveryAndCommitMarkerStreamIntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecLike with KafkaSpec with BeforeAndAfterAll with Eventually {
 
   implicit val materializer: Materializer = akka.stream.Materializer.matFromSystem
   implicit val ec: ExecutionContext = system.dispatcher
@@ -45,7 +45,7 @@ class RedeliveryStreamIntegrationTest extends TestKit(ActorSystem("test-system")
       .withGroupId(kmqConfig.getRedeliveryConsumerGroupId)
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
 
-    val redeliveryStreamControl = new RedeliveryStream(markerConsumerSettings,
+    val redeliveryStreamControl = new RedeliveryAndCommitMarkerStream(markerConsumerSettings,
       kmqConfig.getMarkerTopic, 64,
       new KafkaClients(bootstrapServer), kmqConfig)
       .run()
@@ -78,7 +78,7 @@ class RedeliveryStreamIntegrationTest extends TestKit(ActorSystem("test-system")
       .withGroupId(kmqConfig.getRedeliveryConsumerGroupId)
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
 
-    val commitMarkerStreamControl = new RedeliveryStream(markerConsumerSettings,
+    val commitMarkerStreamControl = new RedeliveryAndCommitMarkerStream(markerConsumerSettings,
       kmqConfig.getMarkerTopic, 64,
       new KafkaClients(bootstrapServer), kmqConfig)
       .run()

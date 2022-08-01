@@ -13,10 +13,10 @@ import com.typesafe.scalalogging.StrictLogging
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, MarkerValue],
-                       markersTopic: String, maxPartitions: Int,
-                       kafkaClients: KafkaClients, kmqConfig: KmqConfig)
-                      (implicit system: ActorSystem, ec: ExecutionContext) extends StrictLogging {
+class RedeliveryAndCommitMarkerStream(markerConsumerSettings: ConsumerSettings[MarkerKey, MarkerValue],
+                                      markersTopic: String, maxPartitions: Int,
+                                      kafkaClients: KafkaClients, kmqConfig: KmqConfig)
+                                     (implicit system: ActorSystem, ec: ExecutionContext) extends StrictLogging {
 
   private val redeliverStream = new RedeliverySimpleStream(markerConsumerSettings, markersTopic, maxPartitions, kafkaClients, kmqConfig)
   private val commitMarkerStream = new CommitMarkerStream(markerConsumerSettings, markersTopic, maxPartitions)
