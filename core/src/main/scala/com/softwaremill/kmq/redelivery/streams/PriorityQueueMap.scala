@@ -9,7 +9,7 @@ import scala.collection.mutable
  * @tparam K key type
  * @tparam V value type
  */
-class CustomPriorityQueueMap[K, V](private val valueOrdering: Ordering[V]) {
+class PriorityQueueMap[K, V](private val valueOrdering: Ordering[V]) {
   private val keys = mutable.Set[K]()
   private val values = new mutable.PriorityQueue[(K, V)]()(ord = orderingByTupleElement2(valueOrdering))
 

@@ -29,7 +29,7 @@ class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, Marke
       .map(MarkerRedeliveryCommand)
       .merge(Source.tick(initialDelay = 1.second, interval = 1.second, tick = TickRedeliveryCommand))
       .statefulMapConcat { () => // keep track of open markers
-        val markersByTimestamp = new CustomPriorityQueueMap[MarkerKey, CommittableMessage[MarkerKey, MarkerValue]](valueOrdering = bySmallestTimestampAscending)
+        val markersByTimestamp = new PriorityQueueMap[MarkerKey, CommittableMessage[MarkerKey, MarkerValue]](valueOrdering = bySmallestTimestampAscending)
         cmd => {
           logger.traceCommand(cmd)
           cmd match {
@@ -97,7 +97,7 @@ object RedeliveryStream {
       }
     }
 
-    def traceHeadOption(markersByTimestamp: CustomPriorityQueueMap[MarkerKey, CommittableMessage[MarkerKey, MarkerValue]], now: Timestamp): Unit = {
+    def traceHeadOption(markersByTimestamp: PriorityQueueMap[MarkerKey, CommittableMessage[MarkerKey, MarkerValue]], now: Timestamp): Unit = {
       logger.whenTraceEnabled {
         markersByTimestamp.headOption match {
           case Some(msg) => logger.trace(s"headOption: Some(${markerToLogger(msg)}), ${redeliveryTimeToLogger(msg, now)}")

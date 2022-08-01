@@ -21,7 +21,7 @@ class CommitMarkerStream(markerConsumerSettings: ConsumerSettings[MarkerKey, Mar
 
     Flow[CommittableMessage[MarkerKey, MarkerValue]]
       .statefulMapConcat { () => // keep track of open markers
-        val markersByOffset = new CustomPriorityQueueMap[MarkerKey, CommittableMessage[MarkerKey, MarkerValue]](valueOrdering = bySmallestOffsetAscending)
+        val markersByOffset = new PriorityQueueMap[MarkerKey, CommittableMessage[MarkerKey, MarkerValue]](valueOrdering = bySmallestOffsetAscending)
         msg => {
           msg.record.value match {
             case _: StartMarker => markersByOffset.put(msg.record.key, msg)
@@ -32,7 +32,7 @@ class CommitMarkerStream(markerConsumerSettings: ConsumerSettings[MarkerKey, Mar
         }
       }
       .statefulMapConcat { () => // deduplicate - pass only markers with increasing offsets
-        val maxOffset = new CustomHolder[Offset]()
+        val maxOffset = new Ref[Offset]()
         msg =>
           if (!maxOffset.getOption.exists(_ >= msg.record.offset)) {
             maxOffset.update(msg.record.offset)
@@ -41,7 +41,7 @@ class CommitMarkerStream(markerConsumerSettings: ConsumerSettings[MarkerKey, Mar
           else None
       }
       .statefulMapConcat { () => // for each new marker return previous one
-        val previousMsg = new CustomHolder[CommittableMessage[MarkerKey, MarkerValue]]()
+        val previousMsg = new Ref[CommittableMessage[MarkerKey, MarkerValue]]()
         msg =>
           val prev = previousMsg.getOption
           previousMsg.update(msg)

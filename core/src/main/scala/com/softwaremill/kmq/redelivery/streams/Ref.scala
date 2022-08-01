@@ -4,7 +4,7 @@ package com.softwaremill.kmq.redelivery.streams
  * Custom mutable single-item collection.
  * @tparam V value type
  */
-class CustomHolder[V] {
+class Ref[V] {
   private var value: Option[V] = None
 
   def getOption: Option[V] = value

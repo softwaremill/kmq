@@ -13,6 +13,9 @@ import com.typesafe.scalalogging.StrictLogging
 
 import scala.concurrent.{ExecutionContext, Future}
 
+/**
+ * Combines functionality of [[RedeliveryStream]] and [[CommitMarkerStream]].
+ */
 class RedeliveryAndCommitMarkerStream(markerConsumerSettings: ConsumerSettings[MarkerKey, MarkerValue],
                                       markersTopic: String, maxPartitions: Int,
                                       kafkaClients: KafkaClients, kmqConfig: KmqConfig)
@@ -21,7 +24,6 @@ class RedeliveryAndCommitMarkerStream(markerConsumerSettings: ConsumerSettings[M
   private val redeliveryStream = new RedeliveryStream(markerConsumerSettings, markersTopic, maxPartitions, kafkaClients, kmqConfig)
   private val commitMarkerStream = new CommitMarkerStream(markerConsumerSettings, markersTopic, maxPartitions)
 
-  // TODO: should combine functionality of RedeliverSimpleStream and CommitMarkerStream
   def run(): DrainingControl[Done] = {
     Consumer.committablePartitionedSource(markerConsumerSettings, Subscriptions.topics(markersTopic))
       .mapAsyncUnordered(maxPartitions) {
