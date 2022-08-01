@@ -29,7 +29,7 @@ class RedeliverySimpleStreamIntegrationTest extends TestKit(ActorSystem("test-sy
   implicit val markerKeyDeserializer: Deserializer[MarkerKey] = new MarkerKey.MarkerKeyDeserializer()
   implicit val markerValueDeserializer: Deserializer[MarkerValue] = new MarkerValue.MarkerValueDeserializer()
 
-  "RedeliveryStream" should "redeliver unprocessed messages" in {
+  "RedeliverySimpleStream" should "redeliver unprocessed messages" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
     val maxRedeliveryCount = 1
