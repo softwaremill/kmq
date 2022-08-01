@@ -8,7 +8,6 @@ import org.scalatest.{BeforeAndAfterEach, Suite}
 
 import scala.concurrent.duration.{DurationInt, SECONDS}
 import scala.jdk.CollectionConverters.{IterableHasAsScala, MapHasAsJava, SeqHasAsJava}
-import scala.util.{Failure, Try}
 
 trait KafkaSpec extends BeforeAndAfterEach {
   self: Suite =>
@@ -33,16 +32,13 @@ trait KafkaSpec extends BeforeAndAfterEach {
     ).asJava
 
     val producer = new KafkaProducer[K, V](props, keySerializer, valueSerializer)
-    val sendFuture = producer.send(new ProducerRecord(topic, message._1, message._2))
-    val sendResult = Try {
-      sendFuture.get(10, SECONDS)
-    }
 
-    producer.close()
-
-    sendResult match {
-      case Failure(ex) => throw new RuntimeException(ex)
-      case _ => // OK
+    try {
+      producer
+        .send(new ProducerRecord(topic, message._1, message._2))
+        .get(10, SECONDS)
+    } finally {
+      producer.close()
     }
   }
 
@@ -61,12 +57,13 @@ trait KafkaSpec extends BeforeAndAfterEach {
     ).asJava
 
     val consumer = new KafkaConsumer[K, V](props, keyDeserializer, valueDeserializer)
-    consumer.subscribe(Seq(topic).asJava)
-    val records = consumer.poll(duration2JavaDuration(10.second)).asScala.toList
 
-    consumer.close()
-
-    records
+    try {
+      consumer.subscribe(Seq(topic).asJava)
+      consumer.poll(duration2JavaDuration(10.second)).asScala.toList
+    } finally {
+      consumer.close()
+    }
   }
 
   override def beforeEach(): Unit = {
