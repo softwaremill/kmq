@@ -19,7 +19,7 @@ import java.util.UUID
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContext}
 
-class CommitMarkerOffsetsStreamIntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecLike with KafkaSpec with BeforeAndAfterAll with Eventually {
+class CommitMarkerStreamIntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecLike with KafkaSpec with BeforeAndAfterAll with Eventually {
 
   implicit val materializer: Materializer = akka.stream.Materializer.matFromSystem
   implicit val ec: ExecutionContext = system.dispatcher
@@ -31,7 +31,7 @@ class CommitMarkerOffsetsStreamIntegrationTest extends TestKit(ActorSystem("test
   implicit val markerKeyDeserializer: Deserializer[MarkerKey] = new MarkerKey.MarkerKeyDeserializer()
   implicit val markerValueDeserializer: Deserializer[MarkerValue] = new MarkerValue.MarkerValueDeserializer()
 
-  "CommitMarkerOffsetsStream" should "commit all markers before first open StartMarker" in {
+  "CommitMarkerStream" should "commit all markers before first open StartMarker" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
     val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
@@ -42,7 +42,7 @@ class CommitMarkerOffsetsStreamIntegrationTest extends TestKit(ActorSystem("test
       .withGroupId(kmqConfig.getRedeliveryConsumerGroupId)
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
 
-    val commitMarkerOffsetsStreamControl = new CommitMarkerOffsetsStream(markerConsumerSettings,
+    val commitMarkerStreamControl = new CommitMarkerStream(markerConsumerSettings,
       kmqConfig.getMarkerTopic, 64)
       .run()
 
@@ -57,7 +57,7 @@ class CommitMarkerOffsetsStreamIntegrationTest extends TestKit(ActorSystem("test
     Thread.sleep(1.seconds.toMillis) //TODO: await for stream to process all markers
 
     // wait until stream shutdown, so there is no active consumer left with given groupId
-    Await.ready(commitMarkerOffsetsStreamControl.drainAndShutdown(), 60.seconds)
+    Await.ready(commitMarkerStreamControl.drainAndShutdown(), 60.seconds)
 
     val markers = consumeAllFromKafkaWithoutCommit[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, "other")
     val uncommittedMarkers = consumeAllFromKafkaWithoutCommit[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, kmqConfig.getRedeliveryConsumerGroupId)

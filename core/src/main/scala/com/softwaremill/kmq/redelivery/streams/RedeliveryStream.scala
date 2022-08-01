@@ -19,19 +19,19 @@ class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, Marke
                       (implicit system: ActorSystem, ec: ExecutionContext) extends StrictLogging {
 
   private val redeliverStream = new RedeliverySimpleStream(markerConsumerSettings, markersTopic, maxPartitions, kafkaClients, kmqConfig)
-  private val commitMarkerOffsetsStream = new CommitMarkerOffsetsStream(markerConsumerSettings, markersTopic, maxPartitions)
+  private val commitMarkerStream = new CommitMarkerStream(markerConsumerSettings, markersTopic, maxPartitions)
 
-  // TODO: should combine functionality of RedeliverSimpleStream and CommitMarkerOffsetsStream
+  // TODO: should combine functionality of RedeliverSimpleStream and CommitMarkerStream
   def run(): DrainingControl[Done] = {
     Consumer.committablePartitionedSource(markerConsumerSettings, Subscriptions.topics(markersTopic))
       .mapAsyncUnordered(maxPartitions) {
         case (topicPartition, source) =>
 
           val redeliverySink = redeliverStream.redeliverySink(topicPartition.partition)
-          val commitMarkerOffsetsSink = commitMarkerOffsetsStream.commitMarkerOffsetsSink()
+          val commitMarkerSink = commitMarkerStream.commitMarkerSink()
 
           RunnableGraph
-            .fromGraph(GraphDSL.createGraph(redeliverySink, commitMarkerOffsetsSink)(combineFutures) {
+            .fromGraph(GraphDSL.createGraph(redeliverySink, commitMarkerSink)(combineFutures) {
               implicit builder => (sink1, sink2) =>
                 import GraphDSL.Implicits._
                 val broadcast = builder.add(Broadcast[CommittableMessage[MarkerKey, MarkerValue]](2))

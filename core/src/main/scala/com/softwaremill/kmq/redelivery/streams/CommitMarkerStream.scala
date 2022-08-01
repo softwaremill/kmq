@@ -12,11 +12,11 @@ import com.softwaremill.kmq.{EndMarker, MarkerKey, MarkerValue, StartMarker}
 
 import scala.concurrent.Future
 
-class CommitMarkerOffsetsStream(markerConsumerSettings: ConsumerSettings[MarkerKey, MarkerValue],
-                                markersTopic: String, maxPartitions: Int)
-                               (implicit system: ActorSystem) {
+class CommitMarkerStream(markerConsumerSettings: ConsumerSettings[MarkerKey, MarkerValue],
+                         markersTopic: String, maxPartitions: Int)
+                        (implicit system: ActorSystem) {
   
-  def commitMarkerOffsetsSink(): Sink[CommittableMessage[MarkerKey, MarkerValue], Future[Done]] = {
+  def commitMarkerSink(): Sink[CommittableMessage[MarkerKey, MarkerValue], Future[Done]] = {
     val committerSettings = CommitterSettings(system)
 
     Flow[CommittableMessage[MarkerKey, MarkerValue]]
@@ -51,13 +51,13 @@ class CommitMarkerOffsetsStream(markerConsumerSettings: ConsumerSettings[MarkerK
       .via(Committer.flow(committerSettings))
       .toMat(Sink.ignore)(Keep.right)
   }
-  
+
   def run(): DrainingControl[Done] = {
     Consumer.committablePartitionedSource(markerConsumerSettings, Subscriptions.topics(markersTopic))
       .mapAsyncUnordered(maxPartitions) {
         case (topicPartition, source) =>
           source
-            .toMat(commitMarkerOffsetsSink())(Keep.right)
+            .toMat(commitMarkerSink())(Keep.right)
             .run()
       }
       .toMat(Sink.ignore)(DrainingControl.apply)
