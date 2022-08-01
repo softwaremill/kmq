@@ -18,8 +18,7 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.time.{Seconds, Span}
 
 import java.util.UUID
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.ExecutionContext
 
 class RedeliveryStreamIntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecLike with KafkaSpec with BeforeAndAfterAll with Eventually {
 
@@ -79,8 +78,9 @@ class RedeliveryStreamIntegrationTest extends TestKit(ActorSystem("test-system")
       .withGroupId(kmqConfig.getRedeliveryConsumerGroupId)
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
 
-    val commitMarkerOffsetsStreamControl = new CommitMarkerOffsetsStream(markerConsumerSettings,
-      kmqConfig.getMarkerTopic, 64)
+    val commitMarkerStreamControl = new RedeliveryStream(markerConsumerSettings,
+      kmqConfig.getMarkerTopic, 64,
+      new KafkaClients(bootstrapServer), kmqConfig)
       .run()
 
     createTopic(kmqConfig.getMarkerTopic)
@@ -91,23 +91,22 @@ class RedeliveryStreamIntegrationTest extends TestKit(ActorSystem("test-system")
     Seq(1, 2, 3, 5)
       .foreach(msg => sendToKafka(kmqConfig.getMarkerTopic, endMarker(msg)))
 
-    Thread.sleep(1.seconds.toMillis) //TODO: await for stream to process all markers
+    commitMarkerStreamControl.drainAndShutdown().andThen { _ =>
+      eventually {
+        val markers = consumeAllFromKafkaWithoutCommit[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, "other")
+        val uncommittedMarkers = consumeAllFromKafkaWithoutCommit[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, kmqConfig.getRedeliveryConsumerGroupId)
 
-    // wait until stream shutdown, so there is no active consumer left with given groupId
-    Await.ready(commitMarkerOffsetsStreamControl.drainAndShutdown(), 60.seconds)
+        markers.groupByTypeAndMapToOffset() should contain theSameElementsAs Map(
+          "StartMarker" -> (1 to 10),
+          "EndMarker" -> Seq(1, 2, 3, 5)
+        )
 
-    val markers = consumeAllFromKafkaWithoutCommit[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, "other")
-    val uncommittedMarkers = consumeAllFromKafkaWithoutCommit[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, kmqConfig.getRedeliveryConsumerGroupId)
-
-    markers.groupByTypeAndMapToOffset() should contain theSameElementsAs Map(
-      "StartMarker" -> (1 to 10),
-      "EndMarker" -> Seq(1, 2, 3, 5)
-    )
-
-    uncommittedMarkers.groupByTypeAndMapToOffset() should contain theSameElementsAs Map(
-      "StartMarker" -> (4 to 10),
-      "EndMarker" -> Seq(1, 2, 3, 5)
-    )
+        uncommittedMarkers.groupByTypeAndMapToOffset() should contain theSameElementsAs Map(
+          "StartMarker" -> (4 to 10),
+          "EndMarker" -> Seq(1, 2, 3, 5)
+        )
+      }(PatienceConfig(timeout = Span(30, Seconds)), implicitly, implicitly)
+    }
   }
 
   override def afterAll(): Unit = {
