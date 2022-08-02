@@ -12,7 +12,7 @@ import org.apache.kafka.common.serialization.ByteBufferDeserializer;
 import org.apache.kafka.common.serialization.ByteBufferSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.collection.Map$;
+import scala.collection.immutable.Map$;
 
 import java.io.Closeable;
 import java.io.IOException;

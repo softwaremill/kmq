@@ -69,7 +69,7 @@ lazy val exampleJava = (projectMatrix in file("example-java"))
       "ch.qos.logback" % "logback-classic" % logbackVersion % Runtime
     )
   )
-  .jvmPlatform(scalaVersions = Seq(scala2_12))
+  .jvmPlatform(scalaVersions = Seq(scala2_13))
   .dependsOn(core)
 
 lazy val exampleScala = (projectMatrix in file("example-scala"))
@@ -78,8 +78,9 @@ lazy val exampleScala = (projectMatrix in file("example-scala"))
     publishArtifact := false,
     libraryDependencies ++= List(
       "com.typesafe.akka" %% "akka-stream-kafka" % akkaStreamKafkaVersion,
+      "io.github.embeddedkafka" %% "embedded-kafka" % "2.7.0",
       "ch.qos.logback" % "logback-classic" % logbackVersion % Runtime
     )
   )
-  .jvmPlatform(scalaVersions = Seq(scala2_12))
+  .jvmPlatform(scalaVersions = Seq(scala2_13))
   .dependsOn(core)

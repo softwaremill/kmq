@@ -12,7 +12,7 @@ import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration.DurationInt
 
 object RedeliveryTracker extends StrictLogging {
-  def start(clients: KafkaClients, config: KmqConfig, bootstrapServers: String): Closeable = {
+  def start(bootstrapServers: String, config: KmqConfig): Closeable = {
     implicit val system: ActorSystem = ActorSystem("kmq-redelivery")
     implicit val ec: ExecutionContext = system.dispatcher
     implicit val markerKeyDeserializer: Deserializer[MarkerKey] = new MarkerKey.MarkerKeyDeserializer()
