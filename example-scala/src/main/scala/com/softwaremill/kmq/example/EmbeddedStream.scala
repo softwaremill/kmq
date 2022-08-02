@@ -1,6 +1,7 @@
 package com.softwaremill.kmq.example
 
-import com.softwaremill.kmq.{KafkaClients, KmqClient, KmqConfig, RedeliveryTracker}
+import com.softwaremill.kmq.redelivery.streams.RedeliveryTracker
+import com.softwaremill.kmq.{KafkaClients, KmqClient, KmqConfig}
 import com.typesafe.scalalogging.StrictLogging
 import net.manub.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -14,7 +15,7 @@ import java.util.Random
 import java.util.concurrent.{ConcurrentHashMap, Executors}
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
-object Embedded extends StrictLogging {
+object EmbeddedStream extends StrictLogging {
   private val TOTAL_MSGS = 100
   private val PARTITIONS = 1
 
@@ -34,7 +35,7 @@ object Embedded extends StrictLogging {
     EmbeddedKafka.createCustomTopic(kmqConfig.getMsgTopic, partitions = PARTITIONS)
     logger.info("Kafka started")
 
-    val redelivery = RedeliveryTracker.start(clients, kmqConfig)
+    val redelivery = RedeliveryTracker.start("localhost:" + kafkaConfig.kafkaPort, kmqConfig)
     startInBackground(() => processMessages(clients, kmqConfig))
     startInBackground(() => sendMessages(clients, kmqConfig))
 
