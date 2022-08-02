@@ -10,16 +10,19 @@ import scala.collection.mutable
  * @tparam V value type
  */
 class PriorityQueueMap[K, V](private val valueOrdering: Ordering[V]) {
-  private val keys = mutable.Set[K]()
+  private val keys = mutable.Map[K, V]()
+  private val removedKeys = mutable.Map[K, V]()
   private val values = new mutable.PriorityQueue[(K, V)]()(ord = orderingByTupleElement2(valueOrdering))
 
   def put(key: K, value: V): Unit = {
+    assertUniqueValue(key, value, keys)
+    assertUniqueValue(key, value, removedKeys)
     values.enqueue((key, value))
-    keys += key
+    keys.put(key, value)
   }
 
   def remove(key: K): Unit = {
-    keys -= key
+    keys.remove(key).foreach(value => removedKeys.put(key, value))
   }
 
   def headOption: Option[V] = {
@@ -29,12 +32,12 @@ class PriorityQueueMap[K, V](private val valueOrdering: Ordering[V]) {
 
   def dequeue(): V = {
     dequeueRemovedHeads()
-    values.dequeue()._2
+    doDequeueHead()
   }
 
   private def dequeueRemovedHeads(): Unit = {
     while (isHeadRemoved) {
-      values.dequeue()
+      doDequeueHead()
     }
   }
 
@@ -42,6 +45,17 @@ class PriorityQueueMap[K, V](private val valueOrdering: Ordering[V]) {
     values.headOption.exists(e => !keys.contains(e._1))
   }
 
+  private def doDequeueHead(): V = {
+    val head = values.dequeue()
+    keys.remove(head._1)
+    removedKeys.remove(head._1)
+    head._2
+  }
+
   private def orderingByTupleElement2(implicit ord: Ordering[V]): Ordering[(K, V)] =
     (x, y) => ord.compare(x._2, y._2)
+
+  private def assertUniqueValue(key: K, value: V, map: mutable.Map[K, V]): Unit = {
+    if (map.get(key).exists(value != _)) throw new IllegalArgumentException("Duplicate key with different value")
+  }
 }
