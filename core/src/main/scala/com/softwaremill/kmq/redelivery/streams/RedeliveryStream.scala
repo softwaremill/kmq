@@ -30,20 +30,43 @@ class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, Marke
       .merge(Source.tick(initialDelay = 1.second, interval = 1.second, tick = TickRedeliveryCommand))
       .statefulMapConcat { () => // keep track of open markers
         val markersByTimestamp = new PriorityQueueMap[MarkerKey, CommittableMessage[MarkerKey, MarkerValue]](valueOrdering = bySmallestTimestampAscending)
+        val latestMarkerSeenTimestamp = new Ref[Timestamp]
+        val latestMarkerSeenAt = new Ref[Timestamp]
         cmd => {
           logger.traceCommand(cmd)
           cmd match {
             case TickRedeliveryCommand => // nothing to do
             case MarkerRedeliveryCommand(msg) =>
+              // update markersByTimestamp
               msg.record.value match {
                 case _: StartMarker => markersByTimestamp.put(msg.record.key, msg)
                 case _: EndMarker => markersByTimestamp.remove(msg.record.key)
                 case _ => throw new IllegalArgumentException()
               }
+
+              //update latestMarkerSeen timestamps
+              latestMarkerSeenAt.update(System.currentTimeMillis())
+              if (!latestMarkerSeenTimestamp.getOption.exists(_ >= msg.record.timestamp)) {
+                latestMarkerSeenTimestamp.update(msg.record.timestamp)
+              }
           }
 
-          // pass on all expired markers
-          val now = System.currentTimeMillis()
+          // pass on all expired markers TODO: cleanup
+          val currentTime = System.currentTimeMillis()
+          val now = latestMarkerSeenAt.getOption.flatMap { lm =>
+            if (currentTime - lm < kmqConfig.getUseNowForRedeliverDespiteNoMarkerSeenForMs) {
+              /* If we've seen a marker recently, then using the latest seen marker (which is the maximum marker offset seen
+              at all) for computing redelivery. This guarantees that we won't redeliver a message for which an end marker
+              was sent, but is waiting in the topic for being observed, even though comparing the wall clock time and start
+              marker timestamp exceeds the message timeout. */
+              latestMarkerSeenTimestamp.getOption
+            } else {
+              /* If we haven't seen a marker recently, assuming that it's because all available have been observed. Hence
+              there are no delays in processing of the markers, so we can use the current time for computing which messages
+              should be redelivered. */
+              Some(currentTime)
+            }
+          }.getOrElse(currentTime)
           logger.traceHeadOption(markersByTimestamp, now)
 
           val toRedeliver = ArrayBuffer[CommittableMessage[MarkerKey, MarkerValue]]()
