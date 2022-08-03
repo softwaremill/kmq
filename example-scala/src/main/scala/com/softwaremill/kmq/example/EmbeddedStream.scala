@@ -12,7 +12,6 @@ import java.nio.ByteBuffer
 import java.time.Duration
 import java.util.Random
 import java.util.concurrent.{ConcurrentHashMap, Executors}
-import scala.concurrent.duration.DurationInt
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
 object EmbeddedStream extends StrictLogging {
@@ -23,7 +22,7 @@ object EmbeddedStream extends StrictLogging {
   private implicit val kafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig.defaultConfig
 
   private val kmqConfig = new KmqConfig("queue", "markers", "kmq_client", "kmq_redelivery",
-    Duration.ofSeconds(10).toMillis, 1000)
+    Duration.ofSeconds(3).toMillis, 1000)
   private val bootstrapServers = "localhost:" + kafkaConfig.kafkaPort
   private val clients = new KafkaClients(bootstrapServers)
   private val random: Random = new Random(0)
@@ -38,7 +37,7 @@ object EmbeddedStream extends StrictLogging {
     logger.info("Kafka started")
 
     val redelivery = RedeliveryTracker.start(bootstrapServers, kmqConfig)
-    sleep(3.second.toMillis) // Wait for the stream to warm up
+    sleep(1000) // Wait for the stream to warm up TODO: analyze
 
     startInBackground(() => processMessages(clients, kmqConfig))
     startInBackground(() => sendMessages(clients, kmqConfig))
@@ -84,7 +83,7 @@ object EmbeddedStream extends StrictLogging {
     // FAIL_RATIO of the messages are dropped
     if (random.nextDouble() >= FAIL_RATIO) {
       logger.info("Processing message: " + msg)
-      sleep(random.nextInt(25) * 100L) // Sleeping up to 2.5 seconds
+      sleep(random.nextInt(1500)) // Sleeping up to 1.5 seconds
       val previous = processedMessages.put(msg, msg)
       if (previous != null) {
         logger.warn(String.format("Message %d was already processed!", msg))
