@@ -28,8 +28,8 @@ class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, Marke
     Flow[CommittableMessage[MarkerKey, MarkerValue]]
       .map(MarkerRedeliveryCommand)
       .merge(Source.tick(initialDelay = 1.second, interval = 1.second, tick = TickRedeliveryCommand))
-      .statefulMapConcat { () => // keep track of open markers
-        val markersByTimestamp = new PriorityQueueMap[MarkerKey, CommittableMessage[MarkerKey, MarkerValue]](valueOrdering = bySmallestTimestampAscending)
+      .statefulMapConcat { () => // keep track of open markers; select markers to redeliver
+        val markersByTimestamp = new PriorityQueueMap[MarkerKey, MsgWithTimestamp](valueOrdering = bySmallestTimestampAscending)
         val latestMarkerSeenTimestamp = new Ref[Timestamp]
         val latestMarkerSeenAt = new Ref[Timestamp]
         cmd => {
@@ -39,7 +39,7 @@ class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, Marke
             case MarkerRedeliveryCommand(msg) =>
               // update markersByTimestamp
               msg.record.value match {
-                case _: StartMarker => markersByTimestamp.put(msg.record.key, msg)
+                case _: StartMarker => markersByTimestamp.put(msg.record.key, MsgWithTimestamp(msg, msg.record.timestamp + msg.record.value.asInstanceOf[StartMarker].getRedeliverAfter)) //TODO: simplify
                 case _: EndMarker => markersByTimestamp.remove(msg.record.key)
                 case _ => throw new IllegalArgumentException()
               }
@@ -70,8 +70,8 @@ class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, Marke
           logger.traceHeadOption(markersByTimestamp, now)
 
           val toRedeliver = ArrayBuffer[CommittableMessage[MarkerKey, MarkerValue]]()
-          while (markersByTimestamp.headOption.exists(now >= _.record.value.asInstanceOf[StartMarker].getRedeliverAfter)) {
-            toRedeliver += markersByTimestamp.dequeue()
+          while (markersByTimestamp.headOption.exists(now >= _.redeliveryTime)) {
+            toRedeliver += markersByTimestamp.dequeue().msg
           }
           logger.traceToRedeliver(toRedeliver)
           toRedeliver
@@ -99,9 +99,11 @@ class RedeliveryStream(markerConsumerSettings: ConsumerSettings[MarkerKey, Marke
       .run()
   }
 
-  private def bySmallestTimestampAscending(implicit ord: Ordering[Timestamp]): Ordering[CommittableMessage[MarkerKey, MarkerValue]] =
-    (x, y) => ord.compare(y.record.value.asInstanceOf[StartMarker].getRedeliverAfter, x.record.value.asInstanceOf[StartMarker].getRedeliverAfter)
+  private def bySmallestTimestampAscending(implicit ord: Ordering[Timestamp]): Ordering[MsgWithTimestamp] =
+    (x, y) => ord.compare(x.redeliveryTime, y.redeliveryTime)
 }
+
+case class MsgWithTimestamp(msg: CommittableMessage[MarkerKey, MarkerValue], redeliveryTime: Timestamp)
 
 object RedeliveryStream {
 
@@ -120,10 +122,10 @@ object RedeliveryStream {
       }
     }
 
-    def traceHeadOption(markersByTimestamp: PriorityQueueMap[MarkerKey, CommittableMessage[MarkerKey, MarkerValue]], now: Timestamp): Unit = {
+    def traceHeadOption(markersByTimestamp: PriorityQueueMap[MarkerKey, MsgWithTimestamp], now: Timestamp): Unit = {
       logger.whenTraceEnabled {
         markersByTimestamp.headOption match {
-          case Some(msg) => logger.trace(s"headOption: Some(${markerToLogger(msg)}), ${redeliveryTimeToLogger(msg, now)}")
+          case Some(head) => logger.trace(s"headOption: Some(${markerToLogger(head.msg)}), ${redeliveryTimeToLogger(head.redeliveryTime, now)}")
           case None => logger.trace("headOption: None")
         }
       }
@@ -138,7 +140,7 @@ object RedeliveryStream {
     private def markerToLogger(msg: CommittableMessage[MarkerKey, MarkerValue]): String =
       s"${msg.record.value.getClass.getSimpleName}(${msg.record.key.getPartition}, ${msg.record.key.getMessageOffset})"
 
-    private def redeliveryTimeToLogger(msg: CommittableMessage[MarkerKey, MarkerValue], now: Timestamp): String =
-      s"expected redelivery in = ${msg.record.value.asInstanceOf[StartMarker].getRedeliverAfter - now}ms"
+    private def redeliveryTimeToLogger(redeliveryTime: Timestamp, now: Timestamp): String =
+      s"expected redelivery in = ${redeliveryTime - now}ms"
   }
 }

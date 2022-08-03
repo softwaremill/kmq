@@ -115,7 +115,7 @@ class RedeliveryAndCommitMarkerStreamIntegrationTest extends TestKit(ActorSystem
   }
 
   def startMarker(msgOffset: Int, redeliverAfterMs: Long): (MarkerKey, MarkerValue) =
-    new MarkerKey(0, msgOffset) -> new StartMarker(System.currentTimeMillis + redeliverAfterMs).asInstanceOf[MarkerValue]
+    new MarkerKey(0, msgOffset) -> new StartMarker(redeliverAfterMs).asInstanceOf[MarkerValue]
 
   def startMarker(msgOffset: Int): (MarkerKey, MarkerValue) = startMarker(msgOffset, 100)
 

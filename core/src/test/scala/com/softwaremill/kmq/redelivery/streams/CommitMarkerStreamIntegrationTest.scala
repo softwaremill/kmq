@@ -78,7 +78,7 @@ class CommitMarkerStreamIntegrationTest extends TestKit(ActorSystem("test-system
   }
 
   def startMarker(msgOffset: Int): (MarkerKey, MarkerValue) =
-    new MarkerKey(0, msgOffset) -> new StartMarker(System.currentTimeMillis() + 100).asInstanceOf[MarkerValue]
+    new MarkerKey(0, msgOffset) -> new StartMarker(100).asInstanceOf[MarkerValue]
 
   def endMarker(msgOffset: Int): (MarkerKey, MarkerValue) =
     new MarkerKey(0, msgOffset) -> EndMarker.INSTANCE.asInstanceOf[MarkerValue]

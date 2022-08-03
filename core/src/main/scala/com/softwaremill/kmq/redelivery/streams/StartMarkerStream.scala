@@ -25,7 +25,7 @@ class StartMarkerStream(msgConsumerSettings: ConsumerSettings[String, String],
     Flow[CommittableMessage[String, String]]
       .map { msg: CommittableMessage[String, String] =>
         ProducerMessage.single(
-          new ProducerRecord[MarkerKey, MarkerValue](markersTopic, MarkerKey.fromRecord(msg.record), new StartMarker(msg.record.timestamp() + messageTimeout)),
+          new ProducerRecord[MarkerKey, MarkerValue](markersTopic, MarkerKey.fromRecord(msg.record), new StartMarker(messageTimeout)),
           msg
         )
       }

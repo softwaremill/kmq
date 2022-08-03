@@ -9,23 +9,24 @@ import org.apache.kafka.common.serialization.{ByteBufferDeserializer, ByteBuffer
 
 import java.nio.ByteBuffer
 import java.time.Duration
-import java.util
 import java.util.Random
 import java.util.concurrent.{ConcurrentHashMap, Executors}
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
 object Embedded extends StrictLogging {
-  private val TOTAL_MSGS = 100
+  private val TOTAL_MSGS = 4
+  private val FAIL_RATIO = 0.5
   private val PARTITIONS = 1
 
   private implicit val kafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig.defaultConfig
 
   private val kmqConfig = new KmqConfig("queue", "markers", "kmq_client", "kmq_redelivery",
     Duration.ofSeconds(10).toMillis, 1000)
-  private val clients = new KafkaClients("localhost:" + kafkaConfig.kafkaPort)
-  private val random: Random = new Random
+  private val bootstrapServers = "localhost:" + kafkaConfig.kafkaPort
+  private val clients = new KafkaClients(bootstrapServers)
+  private val random: Random = new Random(0)
 
-  private val processedMessages: util.Map[Integer, Integer] = new ConcurrentHashMap[Integer, Integer]
+  private val processedMessages = new ConcurrentHashMap[Integer, Integer]
 
   final def main(args: Array[String]): Unit = {
     EmbeddedKafka.start()
@@ -76,8 +77,8 @@ object Embedded extends StrictLogging {
 
   private def processMessage(rawMsg: ConsumerRecord[ByteBuffer, ByteBuffer]): Boolean = {
     val msg = rawMsg.value.getInt
-    // 10% of the messages are dropped
-    if (random.nextInt(10) != 0) {
+    // FAIL_RATIO of the messages are dropped
+    if (random.nextDouble() >= FAIL_RATIO) {
       logger.info("Processing message: " + msg)
       sleep(random.nextInt(25) * 100L) // Sleeping up to 2.5 seconds
       val previous = processedMessages.put(msg, msg)
