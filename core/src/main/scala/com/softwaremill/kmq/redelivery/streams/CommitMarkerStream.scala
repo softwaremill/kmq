@@ -32,19 +32,19 @@ class CommitMarkerStream(markerConsumerSettings: ConsumerSettings[MarkerKey, Mar
         }
       }
       .statefulMapConcat { () => // deduplicate - pass only markers with increasing offsets
-        val maxOffset = new Ref[Offset]()
+        var maxOffset: Option[Offset] = None
         msg =>
-          if (!maxOffset.getOption.exists(_ >= msg.record.offset)) {
-            maxOffset.update(msg.record.offset)
+          if (!maxOffset.exists(_ >= msg.record.offset)) {
+            maxOffset = Some(msg.record.offset)
             Some(msg)
           }
           else None
       }
       .statefulMapConcat { () => // for each new marker return previous one
-        val previousMsg = new Ref[CommittableMessage[MarkerKey, MarkerValue]]()
+        var previousMsg: Option[CommittableMessage[MarkerKey, MarkerValue]] = None
         msg =>
-          val prev = previousMsg.getOption
-          previousMsg.update(msg)
+          val prev = previousMsg
+          previousMsg = Some(msg)
           prev
       }
       .map(_.committableOffset)
