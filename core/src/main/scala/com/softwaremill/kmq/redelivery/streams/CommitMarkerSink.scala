@@ -12,9 +12,9 @@ import com.softwaremill.kmq.{EndMarker, MarkerKey, MarkerValue, StartMarker}
 
 import scala.concurrent.Future
 
-class CommitMarkerStream(markerConsumerSettings: ConsumerSettings[MarkerKey, MarkerValue],
-                         markersTopic: String, maxPartitions: Int)
-                        (implicit system: ActorSystem) {
+class CommitMarkerSink(markerConsumerSettings: ConsumerSettings[MarkerKey, MarkerValue],
+                       markersTopic: String, maxPartitions: Int)
+                      (implicit system: ActorSystem) {
   
   def commitMarkerSink(): Sink[CommittableMessage[MarkerKey, MarkerValue], Future[Done]] = {
     val committerSettings = CommitterSettings(system)

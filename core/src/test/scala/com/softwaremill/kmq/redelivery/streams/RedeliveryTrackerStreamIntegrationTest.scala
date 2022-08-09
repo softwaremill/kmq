@@ -45,7 +45,7 @@ class RedeliveryTrackerStreamIntegrationTest extends TestKit(ActorSystem("test-s
       .withGroupId(kmqConfig.getRedeliveryConsumerGroupId)
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
 
-    val redeliveryStreamControl = new RedeliveryTrackerStream(markerConsumerSettings,
+    val streamControl = new RedeliveryTrackerStream(markerConsumerSettings,
       kmqConfig.getMarkerTopic, 64,
       new KafkaClients(bootstrapServer), kmqConfig)
       .run()
@@ -64,7 +64,7 @@ class RedeliveryTrackerStreamIntegrationTest extends TestKit(ActorSystem("test-s
       consumeAllFromKafkaWithoutCommit[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, "other").size shouldBe 20
     }(PatienceConfig(timeout = Span(30, Seconds)), implicitly, implicitly)
 
-    redeliveryStreamControl.drainAndShutdown()
+    streamControl.drainAndShutdown()
   }
 
   "RedeliveryTrackerStream" should "commit all markers before first open StartMarker" in {
@@ -78,7 +78,7 @@ class RedeliveryTrackerStreamIntegrationTest extends TestKit(ActorSystem("test-s
       .withGroupId(kmqConfig.getRedeliveryConsumerGroupId)
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
 
-    val commitMarkerStreamControl = new RedeliveryTrackerStream(markerConsumerSettings,
+    val streamControl = new RedeliveryTrackerStream(markerConsumerSettings,
       kmqConfig.getMarkerTopic, 64,
       new KafkaClients(bootstrapServer), kmqConfig)
       .run()
@@ -91,7 +91,7 @@ class RedeliveryTrackerStreamIntegrationTest extends TestKit(ActorSystem("test-s
     Seq(1, 2, 3, 5)
       .foreach(msg => sendToKafka(kmqConfig.getMarkerTopic, endMarker(msg)))
 
-    commitMarkerStreamControl.drainAndShutdown().andThen { _ =>
+    streamControl.drainAndShutdown().andThen { _ =>
       eventually {
         val markers = consumeAllFromKafkaWithoutCommit[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, "other")
         val uncommittedMarkers = consumeAllFromKafkaWithoutCommit[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, kmqConfig.getRedeliveryConsumerGroupId)
