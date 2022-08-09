@@ -23,7 +23,7 @@ object RedeliveryTracker extends StrictLogging {
       .withGroupId(config.getRedeliveryConsumerGroupId)
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
 
-    val streamControl = new RedeliveryAndCommitMarkerStream(markerConsumerSettings,
+    val streamControl = new RedeliveryTrackerStream(markerConsumerSettings,
       config.getMarkerTopic, 64,
       new KafkaClients(bootstrapServers), config)
       .run()

@@ -16,10 +16,10 @@ import scala.concurrent.{ExecutionContext, Future}
 /**
  * Combines functionality of [[RedeliveryStream]] and [[CommitMarkerStream]].
  */
-class RedeliveryAndCommitMarkerStream(markerConsumerSettings: ConsumerSettings[MarkerKey, MarkerValue],
-                                      markersTopic: String, maxPartitions: Int,
-                                      kafkaClients: KafkaClients, kmqConfig: KmqConfig)
-                                     (implicit system: ActorSystem, ec: ExecutionContext) extends StrictLogging {
+class RedeliveryTrackerStream(markerConsumerSettings: ConsumerSettings[MarkerKey, MarkerValue],
+                              markersTopic: String, maxPartitions: Int,
+                              kafkaClients: KafkaClients, kmqConfig: KmqConfig)
+                             (implicit system: ActorSystem, ec: ExecutionContext) extends StrictLogging {
 
   private val redeliveryStream = new RedeliveryStream(markerConsumerSettings, markersTopic, maxPartitions, kafkaClients, kmqConfig)
   private val commitMarkerStream = new CommitMarkerStream(markerConsumerSettings, markersTopic, maxPartitions)

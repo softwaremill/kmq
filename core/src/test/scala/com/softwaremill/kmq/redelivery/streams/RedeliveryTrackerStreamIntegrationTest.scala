@@ -20,7 +20,7 @@ import org.scalatest.time.{Seconds, Span}
 import java.util.UUID
 import scala.concurrent.ExecutionContext
 
-class RedeliveryAndCommitMarkerStreamIntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecLike with KafkaSpec with BeforeAndAfterAll with Eventually {
+class RedeliveryTrackerStreamIntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecLike with KafkaSpec with BeforeAndAfterAll with Eventually {
 
   implicit val materializer: Materializer = akka.stream.Materializer.matFromSystem
   implicit val ec: ExecutionContext = system.dispatcher
@@ -32,7 +32,7 @@ class RedeliveryAndCommitMarkerStreamIntegrationTest extends TestKit(ActorSystem
   implicit val markerKeyDeserializer: Deserializer[MarkerKey] = new MarkerKey.MarkerKeyDeserializer()
   implicit val markerValueDeserializer: Deserializer[MarkerValue] = new MarkerValue.MarkerValueDeserializer()
 
-  "RedeliveryAndCommitMarkerStream" should "redeliver unprocessed messages" in {
+  "RedeliveryTrackerStream" should "redeliver unprocessed messages" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
     val maxRedeliveryCount = 1
@@ -45,7 +45,7 @@ class RedeliveryAndCommitMarkerStreamIntegrationTest extends TestKit(ActorSystem
       .withGroupId(kmqConfig.getRedeliveryConsumerGroupId)
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
 
-    val redeliveryStreamControl = new RedeliveryAndCommitMarkerStream(markerConsumerSettings,
+    val redeliveryStreamControl = new RedeliveryTrackerStream(markerConsumerSettings,
       kmqConfig.getMarkerTopic, 64,
       new KafkaClients(bootstrapServer), kmqConfig)
       .run()
@@ -67,7 +67,7 @@ class RedeliveryAndCommitMarkerStreamIntegrationTest extends TestKit(ActorSystem
     redeliveryStreamControl.drainAndShutdown()
   }
 
-  "RedeliveryAndCommitMarkerStream" should "commit all markers before first open StartMarker" in {
+  "RedeliveryTrackerStream" should "commit all markers before first open StartMarker" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
     val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
@@ -78,7 +78,7 @@ class RedeliveryAndCommitMarkerStreamIntegrationTest extends TestKit(ActorSystem
       .withGroupId(kmqConfig.getRedeliveryConsumerGroupId)
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
 
-    val commitMarkerStreamControl = new RedeliveryAndCommitMarkerStream(markerConsumerSettings,
+    val commitMarkerStreamControl = new RedeliveryTrackerStream(markerConsumerSettings,
       kmqConfig.getMarkerTopic, 64,
       new KafkaClients(bootstrapServer), kmqConfig)
       .run()
