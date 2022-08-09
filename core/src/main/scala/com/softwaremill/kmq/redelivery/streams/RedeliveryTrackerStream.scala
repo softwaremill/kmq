@@ -17,20 +17,17 @@ import scala.concurrent.{ExecutionContext, Future}
  * Combines functionality of [[RedeliverySink]] and [[CommitMarkerSink]].
  */
 class RedeliveryTrackerStream(markerConsumerSettings: ConsumerSettings[MarkerKey, MarkerValue],
-                              markersTopic: String, maxPartitions: Int,
-                              kafkaClients: KafkaClients, kmqConfig: KmqConfig)
-                             (implicit system: ActorSystem, ec: ExecutionContext) extends StrictLogging {
-
-  private val redeliverySinkFactory = new RedeliverySink(markerConsumerSettings, markersTopic, maxPartitions, kafkaClients, kmqConfig)
-  private val commitMarkerSinkFactory = new CommitMarkerSink(markerConsumerSettings, markersTopic, maxPartitions)
+                              markersTopic: String, maxPartitions: Int)
+                             (implicit system: ActorSystem, ec: ExecutionContext,
+                              kafkaClients: KafkaClients, kmqConfig: KmqConfig) extends StrictLogging {
 
   def run(): DrainingControl[Done] = {
     Consumer.committablePartitionedSource(markerConsumerSettings, Subscriptions.topics(markersTopic))
       .mapAsyncUnordered(maxPartitions) {
         case (topicPartition, source) =>
 
-          val redeliverySink = redeliverySinkFactory.redeliverySink(topicPartition.partition)
-          val commitMarkerSink = commitMarkerSinkFactory.commitMarkerSink()
+          val redeliverySink = RedeliverySink(topicPartition.partition)
+          val commitMarkerSink = CommitMarkerSink()
 
           RunnableGraph
             .fromGraph(GraphDSL.createGraph(redeliverySink, commitMarkerSink)(combineFutures) {

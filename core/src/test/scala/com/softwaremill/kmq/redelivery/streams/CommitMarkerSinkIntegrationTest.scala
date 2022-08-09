@@ -2,6 +2,8 @@ package com.softwaremill.kmq.redelivery.streams
 
 import akka.actor.ActorSystem
 import akka.kafka._
+import akka.kafka.scaladsl.Consumer
+import akka.kafka.scaladsl.Consumer.DrainingControl
 import akka.stream.Materializer
 import akka.testkit.TestKit
 import com.softwaremill.kmq._
@@ -42,8 +44,8 @@ class CommitMarkerSinkIntegrationTest extends TestKit(ActorSystem("test-system")
       .withGroupId(kmqConfig.getRedeliveryConsumerGroupId)
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
 
-    val streamControl = new CommitMarkerSink(markerConsumerSettings,
-      kmqConfig.getMarkerTopic, 64)
+    val streamControl = Consumer.committableSource(markerConsumerSettings, Subscriptions.topics(kmqConfig.getMarkerTopic))
+      .toMat(CommitMarkerSink())(DrainingControl.apply)
       .run()
 
     createTopic(kmqConfig.getMarkerTopic)

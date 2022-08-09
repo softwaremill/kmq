@@ -3,12 +3,8 @@ package com.softwaremill.kmq.redelivery.streams
 import akka.Done
 import akka.actor.ActorSystem
 import akka.kafka.ConsumerMessage.CommittableMessage
-import akka.kafka.scaladsl.Consumer
-import akka.kafka.scaladsl.Consumer.DrainingControl
-import akka.kafka.{ConsumerSettings, Subscriptions}
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import com.softwaremill.kmq._
-import com.softwaremill.kmq.redelivery.streams.RedeliverySink._
 import com.softwaremill.kmq.redelivery.{DefaultRedeliverer, Partition, RetryingRedeliverer, Timestamp}
 import com.typesafe.scalalogging.{Logger, StrictLogging}
 import org.apache.kafka.common.serialization.ByteArraySerializer
@@ -17,14 +13,13 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
-class RedeliverySink(markerConsumerSettings: ConsumerSettings[MarkerKey, MarkerValue],
-                     markersTopic: String, maxPartitions: Int,
-                     kafkaClients: KafkaClients, kmqConfig: KmqConfig)
-                    (implicit system: ActorSystem) extends StrictLogging {
+object RedeliverySink extends StrictLogging {
 
-  private val producer = kafkaClients.createProducer(classOf[ByteArraySerializer], classOf[ByteArraySerializer])
+  def apply(partition: Partition)
+           (implicit system: ActorSystem, kafkaClients: KafkaClients, kmqConfig: KmqConfig
+           ): Sink[CommittableMessage[MarkerKey, MarkerValue], Future[Done]] = {
+    val producer = kafkaClients.createProducer(classOf[ByteArraySerializer], classOf[ByteArraySerializer])
 
-  def redeliverySink(partition: Partition): Sink[CommittableMessage[MarkerKey, MarkerValue], Future[Done]] = {
     Flow[CommittableMessage[MarkerKey, MarkerValue]]
       .map(MarkerRedeliveryCommand)
       .merge(Source.tick(initialDelay = 1.second, interval = 1.second, tick = TickRedeliveryCommand))
@@ -87,25 +82,10 @@ class RedeliverySink(markerConsumerSettings: ConsumerSettings[MarkerKey, MarkerV
       .toMat(Sink.ignore)(Keep.right)
   }
 
-  def run(): DrainingControl[Done] = {
-    Consumer.committablePartitionedSource(markerConsumerSettings, Subscriptions.topics(markersTopic))
-      .mapAsyncUnordered(maxPartitions) {
-        case (topicPartition, source) =>
-          source
-            .toMat(redeliverySink(topicPartition.partition))(Keep.right)
-            .run()
-      }
-      .toMat(Sink.ignore)(DrainingControl.apply)
-      .run()
-  }
-
   private def bySmallestTimestampAscending(implicit ord: Ordering[Timestamp]): Ordering[MsgWithTimestamp] =
     (x, y) => ord.compare(x.redeliveryTime, y.redeliveryTime)
-}
 
-case class MsgWithTimestamp(msg: CommittableMessage[MarkerKey, MarkerValue], redeliveryTime: Timestamp)
-
-object RedeliverySink {
+  case class MsgWithTimestamp(msg: CommittableMessage[MarkerKey, MarkerValue], redeliveryTime: Timestamp)
 
   sealed trait RedeliveryCommand
   case object TickRedeliveryCommand extends RedeliveryCommand

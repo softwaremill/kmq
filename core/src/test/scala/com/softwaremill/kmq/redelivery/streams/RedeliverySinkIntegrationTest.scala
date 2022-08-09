@@ -1,8 +1,11 @@
 package com.softwaremill.kmq.redelivery.streams
 
 import akka.actor.ActorSystem
-import akka.kafka.ConsumerSettings
+import akka.kafka.scaladsl.Consumer
+import akka.kafka.scaladsl.Consumer.DrainingControl
+import akka.kafka.{ConsumerSettings, Subscriptions}
 import akka.stream.Materializer
+import akka.stream.scaladsl.{Keep, Sink}
 import akka.testkit.TestKit
 import com.softwaremill.kmq._
 import com.softwaremill.kmq.redelivery.infrastructure.KafkaSpec
@@ -34,7 +37,9 @@ class RedeliverySinkIntegrationTest extends TestKit(ActorSystem("test-system")) 
     val uid = UUID.randomUUID().toString
     val maxRedeliveryCount = 1
     val redeliverAfterMs = 300
-    val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
+
+    implicit val kafkaClients: KafkaClients = new KafkaClients(bootstrapServer)
+    implicit val kmqConfig: KmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
       1000, 1000, s"${uid}__undelivered", "kmq-redelivery-count", maxRedeliveryCount)
 
     val markerConsumerSettings = ConsumerSettings(system, markerKeyDeserializer, markerValueDeserializer)
@@ -42,9 +47,13 @@ class RedeliverySinkIntegrationTest extends TestKit(ActorSystem("test-system")) 
       .withGroupId(kmqConfig.getRedeliveryConsumerGroupId)
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
 
-    val streamControl = new RedeliverySink(markerConsumerSettings,
-      kmqConfig.getMarkerTopic, 64,
-      new KafkaClients(bootstrapServer), kmqConfig)
+    val streamControl = Consumer.committablePartitionedSource(markerConsumerSettings, Subscriptions.topics(kmqConfig.getMarkerTopic))
+      .map { case (topicPartition, source) =>
+        source
+          .toMat(RedeliverySink(topicPartition.partition))(Keep.right)
+          .run()
+      }
+      .toMat(Sink.ignore)(DrainingControl.apply)
       .run()
 
     createTopic(kmqConfig.getMsgTopic)

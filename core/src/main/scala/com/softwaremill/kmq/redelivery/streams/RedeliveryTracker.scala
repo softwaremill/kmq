@@ -12,20 +12,19 @@ import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration.DurationInt
 
 object RedeliveryTracker extends StrictLogging {
-  def start(bootstrapServers: String, config: KmqConfig): Closeable = {
+
+  def start()(implicit kafkaClients: KafkaClients, config: KmqConfig): Closeable = {
     implicit val system: ActorSystem = ActorSystem("kmq-redelivery")
     implicit val ec: ExecutionContext = system.dispatcher
     implicit val markerKeyDeserializer: Deserializer[MarkerKey] = new MarkerKey.MarkerKeyDeserializer()
     implicit val markerValueDeserializer: Deserializer[MarkerValue] = new MarkerValue.MarkerValueDeserializer()
 
     val markerConsumerSettings = ConsumerSettings(system, markerKeyDeserializer, markerValueDeserializer)
-      .withBootstrapServers(bootstrapServers)
+      .withBootstrapServers(kafkaClients.getBootstrapServers)
       .withGroupId(config.getRedeliveryConsumerGroupId)
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
 
-    val streamControl = new RedeliveryTrackerStream(markerConsumerSettings,
-      config.getMarkerTopic, 64,
-      new KafkaClients(bootstrapServers), config)
+    val streamControl = new RedeliveryTrackerStream(markerConsumerSettings, config.getMarkerTopic, 64)
       .run()
 
     logger.info("Started redelivery stream")

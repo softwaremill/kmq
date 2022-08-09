@@ -26,6 +26,10 @@ public class KafkaClients {
         this.extraGlobalConfig = extraGlobalConfig;
     }
 
+    public String getBootstrapServers() {
+        return bootstrapServers;
+    }
+
     public <K, V> KafkaProducer<K, V> createProducer(Class<? extends Serializer<K>> keySerializer,
                                                      Class<? extends Serializer<V>> valueSerializer) {
         return createProducer(keySerializer, valueSerializer, Collections.emptyMap());

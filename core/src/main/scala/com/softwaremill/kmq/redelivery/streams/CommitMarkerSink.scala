@@ -2,21 +2,18 @@ package com.softwaremill.kmq.redelivery.streams
 
 import akka.Done
 import akka.actor.ActorSystem
+import akka.kafka.CommitterSettings
 import akka.kafka.ConsumerMessage.CommittableMessage
-import akka.kafka.scaladsl.Consumer.DrainingControl
-import akka.kafka.scaladsl.{Committer, Consumer}
-import akka.kafka.{CommitterSettings, ConsumerSettings, Subscriptions}
+import akka.kafka.scaladsl.Committer
 import akka.stream.scaladsl.{Flow, Keep, Sink}
 import com.softwaremill.kmq.redelivery.Offset
 import com.softwaremill.kmq.{EndMarker, MarkerKey, MarkerValue, StartMarker}
 
 import scala.concurrent.Future
 
-class CommitMarkerSink(markerConsumerSettings: ConsumerSettings[MarkerKey, MarkerValue],
-                       markersTopic: String, maxPartitions: Int)
-                      (implicit system: ActorSystem) {
+object CommitMarkerSink {
   
-  def commitMarkerSink(): Sink[CommittableMessage[MarkerKey, MarkerValue], Future[Done]] = {
+  def apply()(implicit system: ActorSystem): Sink[CommittableMessage[MarkerKey, MarkerValue], Future[Done]] = {
     val committerSettings = CommitterSettings(system)
 
     Flow[CommittableMessage[MarkerKey, MarkerValue]]
@@ -50,18 +47,6 @@ class CommitMarkerSink(markerConsumerSettings: ConsumerSettings[MarkerKey, Marke
       .map(_.committableOffset)
       .via(Committer.flow(committerSettings))
       .toMat(Sink.ignore)(Keep.right)
-  }
-
-  def run(): DrainingControl[Done] = {
-    Consumer.committablePartitionedSource(markerConsumerSettings, Subscriptions.topics(markersTopic))
-      .mapAsyncUnordered(maxPartitions) {
-        case (topicPartition, source) =>
-          source
-            .toMat(commitMarkerSink())(Keep.right)
-            .run()
-      }
-      .toMat(Sink.ignore)(DrainingControl.apply)
-      .run()
   }
 
   def bySmallestOffsetAscending(implicit ord: Ordering[Offset]): Ordering[CommittableMessage[MarkerKey, MarkerValue]] =

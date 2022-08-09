@@ -37,7 +37,9 @@ class RedeliveryTrackerStreamIntegrationTest extends TestKit(ActorSystem("test-s
     val uid = UUID.randomUUID().toString
     val maxRedeliveryCount = 1
     val redeliverAfterMs = 300
-    val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
+
+    implicit val kafkaClients: KafkaClients = new KafkaClients(bootstrapServer)
+    implicit val kmqConfig: KmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
       1000, 1000, s"${uid}__undelivered", "kmq-redelivery-count", maxRedeliveryCount)
 
     val markerConsumerSettings = ConsumerSettings(system, markerKeyDeserializer, markerValueDeserializer)
@@ -46,8 +48,7 @@ class RedeliveryTrackerStreamIntegrationTest extends TestKit(ActorSystem("test-s
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
 
     val streamControl = new RedeliveryTrackerStream(markerConsumerSettings,
-      kmqConfig.getMarkerTopic, 64,
-      new KafkaClients(bootstrapServer), kmqConfig)
+      kmqConfig.getMarkerTopic, 64)
       .run()
 
     createTopic(kmqConfig.getMsgTopic)
@@ -70,7 +71,9 @@ class RedeliveryTrackerStreamIntegrationTest extends TestKit(ActorSystem("test-s
   "RedeliveryTrackerStream" should "commit all markers before first open StartMarker" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
-    val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
+
+    implicit val kafkaClients: KafkaClients = new KafkaClients(bootstrapServer)
+    implicit val kmqConfig: KmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
       1000, 1000)
 
     val markerConsumerSettings = ConsumerSettings(system, markerKeyDeserializer, markerValueDeserializer)
@@ -79,8 +82,7 @@ class RedeliveryTrackerStreamIntegrationTest extends TestKit(ActorSystem("test-s
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
 
     val streamControl = new RedeliveryTrackerStream(markerConsumerSettings,
-      kmqConfig.getMarkerTopic, 64,
-      new KafkaClients(bootstrapServer), kmqConfig)
+      kmqConfig.getMarkerTopic, 64)
       .run()
 
     createTopic(kmqConfig.getMarkerTopic)
