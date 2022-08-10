@@ -19,6 +19,7 @@ object RedeliverySink extends StrictLogging {
            (implicit system: ActorSystem, kafkaClients: KafkaClients, kmqConfig: KmqConfig
            ): Sink[CommittableMessage[MarkerKey, MarkerValue], Future[Done]] = {
     val producer = kafkaClients.createProducer(classOf[ByteArraySerializer], classOf[ByteArraySerializer])
+    val redeliverer = new RetryingRedeliverer(new DefaultRedeliverer(partition, producer, kmqConfig, kafkaClients))
 
     Flow[CommittableMessage[MarkerKey, MarkerValue]]
       .map(MarkerRedeliveryCommand)
@@ -73,7 +74,6 @@ object RedeliverySink extends StrictLogging {
         }
       }
       .statefulMapConcat { () => // redeliver
-        val redeliverer = new RetryingRedeliverer(new DefaultRedeliverer(partition, producer, kmqConfig, kafkaClients))
         msg => {
           redeliverer.redeliver(List(msg.record.key)) // TODO: maybe bulk redeliver
           Some(Done)
