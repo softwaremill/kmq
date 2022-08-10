@@ -45,7 +45,5 @@ class RedeliveryTrackerStream(markerConsumerSettings: ConsumerSettings[MarkerKey
       .run()
   }
 
-  private def combineFutures(l: Future[Done], r: Future[Done]): Future[Done] = {
-    Future.sequence(Seq(l, r)).map(_ => Done)
-  }
+  private def combineFutures(l: Future[Done], r: Future[Done]): Future[Done] = l.flatMap(_ => r)
 }

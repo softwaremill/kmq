@@ -34,7 +34,7 @@ object RedeliverySink extends StrictLogging {
             case MarkerRedeliveryCommand(msg) =>
               // update markersByTimestamp
               msg.record.value match {
-                case _: StartMarker => markersByTimestamp.put(msg.record.key, MsgWithTimestamp(msg, msg.record.timestamp + msg.record.value.asInstanceOf[StartMarker].getRedeliverAfter)) //TODO: simplify
+                case start: StartMarker => markersByTimestamp.put(msg.record.key, MsgWithTimestamp(msg, msg.record.timestamp + start.getRedeliverAfter))
                 case _: EndMarker => markersByTimestamp.remove(msg.record.key)
                 case _ => throw new IllegalArgumentException()
               }
