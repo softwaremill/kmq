@@ -17,6 +17,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.time.{Seconds, Span}
 
+import java.time.Clock
 import java.util.UUID
 import scala.concurrent.ExecutionContext
 
@@ -41,6 +42,7 @@ class RedeliverySinkIntegrationTest extends TestKit(ActorSystem("test-system")) 
     implicit val kafkaClients: KafkaClients = new KafkaClients(bootstrapServer)
     implicit val kmqConfig: KmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
       1000, 1000, s"${uid}__undelivered", "kmq-redelivery-count", maxRedeliveryCount)
+    implicit val clock: Clock = Clock.systemDefaultZone()
 
     val markerConsumerSettings = ConsumerSettings(system, markerKeyDeserializer, markerValueDeserializer)
       .withBootstrapServers(bootstrapServer)

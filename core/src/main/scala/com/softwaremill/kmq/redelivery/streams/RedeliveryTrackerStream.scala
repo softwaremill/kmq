@@ -11,6 +11,7 @@ import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, RunnableGraph, Sink}
 import com.softwaremill.kmq._
 import com.typesafe.scalalogging.StrictLogging
 
+import java.time.Clock
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
@@ -19,7 +20,7 @@ import scala.concurrent.{ExecutionContext, Future}
 class RedeliveryTrackerStream(markerConsumerSettings: ConsumerSettings[MarkerKey, MarkerValue],
                               markersTopic: String, maxPartitions: Int)
                              (implicit system: ActorSystem, ec: ExecutionContext,
-                              kafkaClients: KafkaClients, kmqConfig: KmqConfig) extends StrictLogging {
+                              kafkaClients: KafkaClients, kmqConfig: KmqConfig, clock: Clock) extends StrictLogging {
 
   def run(): DrainingControl[Done] = {
     Consumer.committablePartitionedSource(markerConsumerSettings, Subscriptions.topics(markersTopic))

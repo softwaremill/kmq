@@ -8,6 +8,7 @@ import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.Deserializer
 
 import java.io.Closeable
+import java.time.Clock
 import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration.DurationInt
 
@@ -16,6 +17,7 @@ object RedeliveryTracker extends StrictLogging {
   def start()(implicit kafkaClients: KafkaClients, config: KmqConfig): Closeable = {
     implicit val system: ActorSystem = ActorSystem("kmq-redelivery")
     implicit val ec: ExecutionContext = system.dispatcher
+    implicit val clock: Clock = Clock.systemDefaultZone()
     implicit val markerKeyDeserializer: Deserializer[MarkerKey] = new MarkerKey.MarkerKeyDeserializer()
     implicit val markerValueDeserializer: Deserializer[MarkerValue] = new MarkerValue.MarkerValueDeserializer()
 

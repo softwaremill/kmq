@@ -17,6 +17,7 @@ import org.scalatest.matchers.must.Matchers.contain
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.time.{Seconds, Span}
 
+import java.time.Clock
 import java.util.UUID
 import scala.concurrent.ExecutionContext
 
@@ -24,6 +25,7 @@ class RedeliveryTrackerStreamIntegrationTest extends TestKit(ActorSystem("test-s
 
   implicit val materializer: Materializer = akka.stream.Materializer.matFromSystem
   implicit val ec: ExecutionContext = system.dispatcher
+  implicit val clock: Clock = Clock.systemDefaultZone()
 
   implicit val stringSerializer: Serializer[String] = new StringSerializer()
   implicit val markerKeySerializer: Serializer[MarkerKey] = new MarkerKey.MarkerKeySerializer()

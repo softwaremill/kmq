@@ -9,6 +9,7 @@ import com.softwaremill.kmq.redelivery.{DefaultRedeliverer, Partition, RetryingR
 import com.typesafe.scalalogging.{Logger, StrictLogging}
 import org.apache.kafka.common.serialization.ByteArraySerializer
 
+import java.time.{Clock, Instant}
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
@@ -16,7 +17,7 @@ import scala.concurrent.duration.DurationInt
 object RedeliverySink extends StrictLogging {
 
   def apply(partition: Partition)
-           (implicit system: ActorSystem, kafkaClients: KafkaClients, kmqConfig: KmqConfig
+           (implicit system: ActorSystem, kafkaClients: KafkaClients, kmqConfig: KmqConfig, clock: Clock
            ): Sink[CommittableMessage[MarkerKey, MarkerValue], Future[Done]] = {
     val producer = kafkaClients.createProducer(classOf[ByteArraySerializer], classOf[ByteArraySerializer])
     val redeliverer = new RetryingRedeliverer(new DefaultRedeliverer(partition, producer, kmqConfig, kafkaClients))
@@ -41,14 +42,14 @@ object RedeliverySink extends StrictLogging {
               }
 
               //update latestMarkerSeen timestamps
-              latestMarkerSeenAt = Some(System.currentTimeMillis())
+              latestMarkerSeenAt = Some(Instant.now(clock).toEpochMilli)
               if (!latestMarkerSeenTimestamp.exists(_ >= msg.record.timestamp)) {
                 latestMarkerSeenTimestamp = Some(msg.record.timestamp)
               }
           }
 
           // pass on all expired markers TODO: cleanup
-          val currentTime = System.currentTimeMillis()
+          val currentTime = Instant.now(clock).toEpochMilli
           val now = latestMarkerSeenAt.flatMap { lm =>
             if (currentTime - lm < kmqConfig.getUseNowForRedeliverDespiteNoMarkerSeenForMs) {
               /* If we've seen a marker recently, then using the latest seen marker (which is the maximum marker offset seen
