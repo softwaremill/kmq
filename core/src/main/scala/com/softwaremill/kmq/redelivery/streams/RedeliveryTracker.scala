@@ -24,7 +24,7 @@ object RedeliveryTracker extends StrictLogging {
       .withGroupId(config.getRedeliveryConsumerGroupId)
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
 
-    val streamControl = new RedeliveryTrackerStream(markerConsumerSettings, config.getMarkerTopic, 64)
+    val streamControl = new RedeliveryTrackerStream(markerConsumerSettings, config.getMarkerTopic, Int.MaxValue)
       .run()
 
     logger.info("Started redelivery stream")

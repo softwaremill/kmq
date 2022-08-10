@@ -48,7 +48,7 @@ class RedeliveryTrackerStreamIntegrationTest extends TestKit(ActorSystem("test-s
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
 
     val streamControl = new RedeliveryTrackerStream(markerConsumerSettings,
-      kmqConfig.getMarkerTopic, 64)
+      kmqConfig.getMarkerTopic, Int.MaxValue)
       .run()
 
     createTopic(kmqConfig.getMsgTopic)
@@ -82,7 +82,7 @@ class RedeliveryTrackerStreamIntegrationTest extends TestKit(ActorSystem("test-s
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
 
     val streamControl = new RedeliveryTrackerStream(markerConsumerSettings,
-      kmqConfig.getMarkerTopic, 64)
+      kmqConfig.getMarkerTopic, Int.MaxValue)
       .run()
 
     createTopic(kmqConfig.getMarkerTopic)

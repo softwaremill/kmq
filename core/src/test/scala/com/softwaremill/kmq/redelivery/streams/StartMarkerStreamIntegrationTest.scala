@@ -47,7 +47,7 @@ class StartMarkerStreamIntegrationTest extends TestKit(ActorSystem("test-system"
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
 
     val startMarkerStreamControl = new StartMarkerStream(msgConsumerSettings, markerProducerSettings,
-      kmqConfig.getMsgTopic, kmqConfig.getMarkerTopic, 64, 3.second.toMillis)
+      kmqConfig.getMsgTopic, kmqConfig.getMarkerTopic, Int.MaxValue, 3.second.toMillis)
       .run()
 
     createTopic(kmqConfig.getMsgTopic)
