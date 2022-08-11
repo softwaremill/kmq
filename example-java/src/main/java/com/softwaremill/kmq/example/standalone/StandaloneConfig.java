@@ -9,7 +9,7 @@ class StandaloneConfig {
     static final KmqConfig KMQ_CONFIG = new KmqConfig("queue", "markers", "kmq_client", "kmq_redelivery",
             Duration.ofSeconds(90).toMillis(), 1000);
 
-    /* TODO: EXAMPLE with extraConfig : SSL Encryption & SSL Authentication
+    /* EXAMPLE with extraConfig : SSL Encryption & SSL Authentication
 
         Map extraConfig = new HashMap();
         //configure the following three settings for SSL Encryption

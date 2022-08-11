@@ -4,9 +4,9 @@ package com.softwaremill.kmq;
  * Configuration for the Kafka-based MQ.
  */
 public class KmqConfig {
-    private static final int MAX_REDELIVERY_COUNT = 3;
-    private static final String REDELIVERY_COUNT_HEADER = "kmq-redelivery-count";
-    private static final String DEAD_LETTER_TOPIC_SUFFIX = "__undelivered";
+    private static final int DEFAULT_MAX_REDELIVERY_COUNT = 3;
+    private static final String DEFAULT_REDELIVERY_COUNT_HEADER = "kmq-redelivery-count";
+    private static final String DEFAULT_DEAD_LETTER_TOPIC_SUFFIX = "__undelivered";
 
     private final String msgTopic;
     private final String markerTopic;
@@ -52,7 +52,7 @@ public class KmqConfig {
 
         this(msgTopic, markerTopic, msgConsumerGroupId, redeliveryConsumerGroupId,
                 msgTimeoutMs, useNowForRedeliverDespiteNoMarkerSeenForMs,
-                msgTopic + DEAD_LETTER_TOPIC_SUFFIX, REDELIVERY_COUNT_HEADER, MAX_REDELIVERY_COUNT);
+                msgTopic + DEFAULT_DEAD_LETTER_TOPIC_SUFFIX, DEFAULT_REDELIVERY_COUNT_HEADER, DEFAULT_MAX_REDELIVERY_COUNT);
     }
 
     public String getMsgTopic() {
