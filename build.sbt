@@ -3,10 +3,6 @@ import com.softwaremill.SbtSoftwareMillCommon.commonSmlBuildSettings
 import sbt.Keys._
 import sbt._
 
-name := "kmq"
-organization := "com.softwaremill.kmq"
-version := "0.3.0-SNAPSHOT"
-
 val scala2_12 = "2.12.16"
 val scala2_13 = "2.13.8"
 
@@ -18,31 +14,23 @@ val akkaStreamKafkaVersion = "2.1.1"
 val scalaLoggingVersion = "3.9.5"
 val scalaTestVersion = "3.2.12"
 
-// slow down for CI
+// slow down Tests for CI
 parallelExecution in Global := false
 concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
+// disable mima checks globally
+mimaPreviousArtifacts in Global := Set.empty
 
 lazy val commonSettings = commonSmlBuildSettings ++ ossPublishSettings ++ Seq(
+  organization := "com.softwaremill.kmq",
+  mimaPreviousArtifacts := Set.empty,
+  versionScheme := Some("semver-spec"),
   scalacOptions ++= Seq("-unchecked", "-deprecation"),
   evictionErrorLevel := Level.Info,
-
-  // Sonatype OSS deployment
-  publishTo := {
-    val nexus = "https://oss.sonatype.org/"
-    if (version.value.trim.endsWith("SNAPSHOT"))
-      Some("snapshots" at nexus + "content/repositories/snapshots")
-    else
-      Some("releases" at nexus + "service/local/staging/deploy/maven2")
-  },
-  credentials += Credentials(Path.userHome / ".ivy2" / ".credentials"),
-  publishMavenStyle := true,
-  Test / publishArtifact := false,
-  pomIncludeRepository := { _ => false },
-  pomExtra :=
-    <scm>
-      <url>git@github.com:softwaremill/kmq.git</url>
-      <connection>scm:git:git@github.com:softwaremill/kmq.git</connection>
-    </scm>
+  ideSkipProject := (scalaVersion.value != scala2_13),
+  mimaPreviousArtifacts := previousStableVersion.value.map(organization.value %% moduleName.value % _).toSet,
+  mimaReportBinaryIssues := {
+    if ((publish / skip).value) {} else mimaReportBinaryIssues.value
+  }
 )
 
 lazy val kmq = (projectMatrix in file("."))
