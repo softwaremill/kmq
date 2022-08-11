@@ -35,6 +35,7 @@ class CommitMarkerSinkIntegrationTest extends TestKit(ActorSystem("test-system")
   "CommitMarkerSink" should "commit all markers before first open StartMarker" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
+    val redeliverAfterMs = 300
     val kmqConfig = new KmqConfig(bootstrapServer, s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
       1000, 1000)
 
@@ -50,7 +51,7 @@ class CommitMarkerSinkIntegrationTest extends TestKit(ActorSystem("test-system")
     createTopic(kmqConfig.getMarkerTopic)
 
     (1 to 10)
-      .foreach(msg => sendToKafka(kmqConfig.getMarkerTopic, startMarker(msg)))
+      .foreach(msg => sendToKafka(kmqConfig.getMarkerTopic, startMarker(msg, redeliverAfterMs)))
 
     Seq(1, 2, 3, 5)
       .foreach(msg => sendToKafka(kmqConfig.getMarkerTopic, endMarker(msg)))
@@ -78,8 +79,8 @@ class CommitMarkerSinkIntegrationTest extends TestKit(ActorSystem("test-system")
     TestKit.shutdownActorSystem(system)
   }
 
-  def startMarker(msgOffset: Int): (MarkerKey, MarkerValue) =
-    new MarkerKey(0, msgOffset) -> new StartMarker(100).asInstanceOf[MarkerValue]
+  def startMarker(msgOffset: Int, redeliverAfterMs: Long): (MarkerKey, MarkerValue) =
+    new MarkerKey(0, msgOffset) -> new StartMarker(redeliverAfterMs).asInstanceOf[MarkerValue]
 
   def endMarker(msgOffset: Int): (MarkerKey, MarkerValue) =
     new MarkerKey(0, msgOffset) -> EndMarker.INSTANCE.asInstanceOf[MarkerValue]

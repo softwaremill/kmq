@@ -24,6 +24,7 @@ class RedeliverySinkIntegrationTest extends TestKit(ActorSystem("test-system")) 
 
   implicit val materializer: Materializer = akka.stream.Materializer.matFromSystem
   implicit val ec: ExecutionContext = system.dispatcher
+  implicit val clock: Clock = Clock.systemDefaultZone()
 
   implicit val stringSerializer: Serializer[String] = new StringSerializer()
   implicit val markerKeySerializer: Serializer[MarkerKey] = new MarkerKey.MarkerKeySerializer()
@@ -41,7 +42,6 @@ class RedeliverySinkIntegrationTest extends TestKit(ActorSystem("test-system")) 
     implicit val kmqConfig: KmqConfig = new KmqConfig(bootstrapServer, s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
       1000, 1000, s"${uid}__undelivered", "kmq-redelivery-count", maxRedeliveryCount, Collections.emptyMap())
     implicit val kafkaClients: KafkaClients = new KafkaClients(kmqConfig)
-    implicit val clock: Clock = Clock.systemDefaultZone()
 
     val markerConsumerSettings = ConsumerSettings(system, markerKeyDeserializer, markerValueDeserializer)
       .withBootstrapServers(bootstrapServer)

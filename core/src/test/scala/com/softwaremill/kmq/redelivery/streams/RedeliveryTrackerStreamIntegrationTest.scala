@@ -72,6 +72,7 @@ class RedeliveryTrackerStreamIntegrationTest extends TestKit(ActorSystem("test-s
   "RedeliveryTrackerStream" should "commit all markers before first open StartMarker" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
+    val redeliverAfterMs = 300
 
     implicit val kmqConfig: KmqConfig = new KmqConfig(bootstrapServer, s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
       1000, 1000)
@@ -89,7 +90,7 @@ class RedeliveryTrackerStreamIntegrationTest extends TestKit(ActorSystem("test-s
     createTopic(kmqConfig.getMarkerTopic)
 
     (1 to 10)
-      .foreach(msg => sendToKafka(kmqConfig.getMarkerTopic, startMarker(msg)))
+      .foreach(msg => sendToKafka(kmqConfig.getMarkerTopic, startMarker(msg, redeliverAfterMs)))
 
     Seq(1, 2, 3, 5)
       .foreach(msg => sendToKafka(kmqConfig.getMarkerTopic, endMarker(msg)))
@@ -120,10 +121,8 @@ class RedeliveryTrackerStreamIntegrationTest extends TestKit(ActorSystem("test-s
   def startMarker(msgOffset: Int, redeliverAfterMs: Long): (MarkerKey, MarkerValue) =
     new MarkerKey(0, msgOffset) -> new StartMarker(redeliverAfterMs).asInstanceOf[MarkerValue]
 
-  def startMarker(msgOffset: Int): (MarkerKey, MarkerValue) = startMarker(msgOffset, 100)
-
-  def endMarker(msg: Int): (MarkerKey, MarkerValue) =
-    new MarkerKey(0, msg) -> EndMarker.INSTANCE.asInstanceOf[MarkerValue]
+  def endMarker(msgOffset: Int): (MarkerKey, MarkerValue) =
+    new MarkerKey(0, msgOffset) -> EndMarker.INSTANCE.asInstanceOf[MarkerValue]
 
   implicit class GroupByTypeAndMapToOffsetOperation(markers: Seq[ConsumerRecord[MarkerKey, MarkerValue]]) {
     def groupByTypeAndMapToOffset(): Map[String, Seq[Offset]] = {
