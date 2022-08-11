@@ -4,7 +4,6 @@ import akka.actor.ActorSystem
 import akka.kafka.ConsumerSettings
 import com.softwaremill.kmq._
 import com.typesafe.scalalogging.StrictLogging
-import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.Deserializer
 
 import java.io.Closeable
@@ -25,7 +24,6 @@ object RedeliveryTracker extends StrictLogging {
       .withBootstrapServers(config.getBootstrapServers)
       .withGroupId(config.getRedeliveryConsumerGroupId)
       .withProperties(config.getConsumerProps)
-      .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[PartitionFromMarkerKey].getName)
 
     val streamControl = new RedeliveryTrackerStream(markerConsumerSettings, config.getMarkerTopic, Int.MaxValue)
       .run()

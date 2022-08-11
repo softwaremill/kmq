@@ -9,7 +9,6 @@ import akka.stream.scaladsl.{Keep, Sink}
 import akka.testkit.TestKit
 import com.softwaremill.kmq._
 import com.softwaremill.kmq.redelivery.infrastructure.KafkaSpec
-import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.{Deserializer, Serializer, StringDeserializer, StringSerializer}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.Eventually
@@ -47,7 +46,7 @@ class RedeliverySinkIntegrationTest extends TestKit(ActorSystem("test-system")) 
     val markerConsumerSettings = ConsumerSettings(system, markerKeyDeserializer, markerValueDeserializer)
       .withBootstrapServers(bootstrapServer)
       .withGroupId(kmqConfig.getRedeliveryConsumerGroupId)
-      .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[PartitionFromMarkerKey].getName)
+      .withProperties(kmqConfig.getConsumerProps)
 
     val streamControl = Consumer.committablePartitionedSource(markerConsumerSettings, Subscriptions.topics(kmqConfig.getMarkerTopic))
       .map { case (topicPartition, source) =>

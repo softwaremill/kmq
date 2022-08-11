@@ -8,7 +8,6 @@ import com.softwaremill.kmq._
 import com.softwaremill.kmq.redelivery.Offset
 import com.softwaremill.kmq.redelivery.infrastructure.KafkaSpec
 import org.apache.kafka.clients.consumer.ConsumerRecord
-import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.{Deserializer, Serializer, StringDeserializer, StringSerializer}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.Eventually
@@ -47,7 +46,7 @@ class RedeliveryTrackerStreamIntegrationTest extends TestKit(ActorSystem("test-s
     val markerConsumerSettings = ConsumerSettings(system, markerKeyDeserializer, markerValueDeserializer)
       .withBootstrapServers(bootstrapServer)
       .withGroupId(kmqConfig.getRedeliveryConsumerGroupId)
-      .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[PartitionFromMarkerKey].getName)
+      .withProperties(kmqConfig.getConsumerProps)
 
     val streamControl = new RedeliveryTrackerStream(markerConsumerSettings,
       kmqConfig.getMarkerTopic, Int.MaxValue)
@@ -81,7 +80,7 @@ class RedeliveryTrackerStreamIntegrationTest extends TestKit(ActorSystem("test-s
     val markerConsumerSettings = ConsumerSettings(system, markerKeyDeserializer, markerValueDeserializer)
       .withBootstrapServers(bootstrapServer)
       .withGroupId(kmqConfig.getRedeliveryConsumerGroupId)
-      .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[PartitionFromMarkerKey].getName)
+      .withProperties(kmqConfig.getConsumerProps)
 
     val streamControl = new RedeliveryTrackerStream(markerConsumerSettings,
       kmqConfig.getMarkerTopic, Int.MaxValue)
