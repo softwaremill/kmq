@@ -9,10 +9,8 @@ version := "0.3.0-SNAPSHOT"
 
 val scala2_12 = "2.12.16"
 val scala2_13 = "2.13.8"
-val scala3 = "3.1.2"
 
 val scala2Versions = Seq(scala2_12, scala2_13)
-val scala2And3Versions = scala2Versions ++ List(scala3)
 val examplesScalaVersions = List(scala2_12)
 
 lazy val commonSettings = commonSmlBuildSettings ++ ossPublishSettings ++ Seq(
