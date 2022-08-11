@@ -25,7 +25,7 @@ class StandaloneSender {
     public static void main(String[] args) throws InterruptedException, IOException {
         UncaughtExceptionHandling.setup();
         
-        /* EXAMPLE with extraConfig : SSL Encryption & SSL Authentication
+        /* TODO: EXAMPLE with extraConfig : SSL Encryption & SSL Authentication
         Map extraConfig = new HashMap();
         //configure the following three settings for SSL Encryption
         extraConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL");

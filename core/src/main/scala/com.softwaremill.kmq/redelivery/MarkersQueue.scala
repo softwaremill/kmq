@@ -23,6 +23,8 @@ class MarkersQueue(disableRedeliveryBefore: Offset) {
 
       case _: EndMarker =>
         markersInProgress -= k
+
+      case x => throw new IllegalArgumentException(s"Unknown marker type: ${x.getClass}")
     }
   }
 

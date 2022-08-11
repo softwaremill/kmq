@@ -21,8 +21,8 @@ import scala.io.StdIn
 object StandaloneReactiveClient extends App with StrictLogging {
   import StandaloneConfig._
 
-  implicit val system = ActorSystem()
-  implicit val materializer = ActorMaterializer()
+  implicit val system: ActorSystem = ActorSystem()
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
   import system.dispatcher
 
   val consumerSettings = ConsumerSettings(system, new StringDeserializer, new StringDeserializer)
@@ -34,7 +34,6 @@ object StandaloneReactiveClient extends App with StrictLogging {
     new MarkerKey.MarkerKeySerializer(), new MarkerValue.MarkerValueSerializer())
     .withBootstrapServers(bootstrapServer)
     .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
-  val markerProducer = markerProducerSettings.createKafkaProducer()
 
   val random = new Random()
 
@@ -43,8 +42,8 @@ object StandaloneReactiveClient extends App with StrictLogging {
       ProducerMessage.Message(
         new ProducerRecord[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, MarkerKey.fromRecord(msg.record), new StartMarker(kmqConfig.getMsgTimeoutMs)), msg)
     }
-    .via(Producer.flow(markerProducerSettings, markerProducer)) // 2. write the "start" marker
-    .map(_.message.passThrough)
+    .via(Producer.flexiFlow(markerProducerSettings)) // 2. write the "start" marker
+    .map(_.passThrough)
     .mapAsync(1) { msg => // 3. commit offsets after the "start" markers are sent
       msg.committableOffset.commitScaladsl().map(_ => msg.record) // this should be batched
     }
@@ -61,7 +60,7 @@ object StandaloneReactiveClient extends App with StrictLogging {
     .map { msg =>
       new ProducerRecord[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, MarkerKey.fromRecord(msg), EndMarker.INSTANCE)
     }
-    .to(Producer.plainSink(markerProducerSettings, markerProducer)) // 5. write "end" markers
+    .to(Producer.plainSink(markerProducerSettings)) // 5. write "end" markers
     .run()
 
   logger.info("Press any key to exit ...")
@@ -73,12 +72,12 @@ object StandaloneReactiveClient extends App with StrictLogging {
 object StandaloneSender extends App with StrictLogging {
   import StandaloneConfig._
 
-  implicit val system = ActorSystem()
-  implicit val materializer = ActorMaterializer()
+  implicit val system: ActorSystem = ActorSystem()
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
   val producerSettings = ProducerSettings(system, new StringSerializer(), new StringSerializer())
     .withBootstrapServers(bootstrapServer)
 
-  Source.tick(0.seconds, 100.millis, ()).zip(Source.unfold(0)(x => Some(x+1, x+1))).map(_._2)
+  Source.tick(0.seconds, 100.millis, ()).zip(Source.unfold(0)(x => Some((x+1, x+1)))).map(_._2)
     .map(msg => s"message number $msg")
     .take(100)
     .map { msg => logger.info(s"Sending: '$msg'"); msg }
@@ -105,6 +104,6 @@ object StandaloneTracker extends App with StrictLogging {
 
 object StandaloneConfig {
   val bootstrapServer = "localhost:9092"
-  val kmqConfig = new KmqConfig("queue", "markers", "kmq_client", "kmq_redelivery", Duration.ofSeconds(10).toMillis,
-    1000)
+  val kmqConfig = new KmqConfig("queue", "markers", "kmq_client", "kmq_redelivery",
+    Duration.ofSeconds(10).toMillis, 1000)
 }

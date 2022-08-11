@@ -1,10 +1,10 @@
 package com.softwaremill.kmq.redelivery
 
 import com.softwaremill.kmq.{MarkerKey, StartMarker}
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers._
 
-class MarkersQueueTest extends FlatSpec with Matchers {
+class MarkersQueueTest extends AnyFlatSpec {
   it should "redeliver oldest markers when newer are present" in {
     // given
     val mq = new MarkersQueue(0)
@@ -15,7 +15,7 @@ class MarkersQueueTest extends FlatSpec with Matchers {
     val toRedeliver = mq.markersToRedeliver(15000)
 
     // then
-    toRedeliver should have size (1)
+    toRedeliver should have size 1
     toRedeliver.head.getMessageOffset should be (1000)
   }
 
@@ -29,7 +29,7 @@ class MarkersQueueTest extends FlatSpec with Matchers {
     val toRedeliver = mq.markersToRedeliver(17000)
 
     // then
-    toRedeliver should have size (2)
+    toRedeliver should have size 2
     toRedeliver.map(_.getMessageOffset).toSet should be (Set(1001L, 1000L))
   }
 }

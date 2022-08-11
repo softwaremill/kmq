@@ -6,8 +6,8 @@ import org.scalatest.{BeforeAndAfterEach, Suite}
 
 trait KafkaSpec extends BeforeAndAfterEach { self: Suite =>
 
-  val testKafkaConfig = EmbeddedKafkaConfig(9092, 2182)
-  private implicit val stringDeserializer = new StringDeserializer()
+  val testKafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig(9092, 2182)
+  private implicit val stringDeserializer: StringDeserializer = new StringDeserializer()
 
   def sendToKafka(topic: String, message: String): Unit = {
     EmbeddedKafka.publishStringMessageToKafka(topic, message)(testKafkaConfig)
