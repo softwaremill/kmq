@@ -18,8 +18,11 @@ val akkaStreamKafkaVersion = "2.1.1"
 val scalaLoggingVersion = "3.9.5"
 val scalaTestVersion = "3.2.12"
 
+// slow down for CI
+parallelExecution in Global := false
+concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
+
 lazy val commonSettings = commonSmlBuildSettings ++ ossPublishSettings ++ Seq(
-  Test / parallelExecution := false,
   scalacOptions ++= Seq("-unchecked", "-deprecation"),
   evictionErrorLevel := Level.Info,
 
