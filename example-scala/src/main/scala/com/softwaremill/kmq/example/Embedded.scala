@@ -20,10 +20,10 @@ object Embedded extends StrictLogging {
 
   private implicit val kafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig.defaultConfig
 
-  private val kmqConfig = new KmqConfig("queue", "markers", "kmq_client", "kmq_redelivery",
-    Duration.ofSeconds(3).toMillis, 1000)
   private val bootstrapServers = "localhost:" + kafkaConfig.kafkaPort
-  private val clients = new KafkaClients(bootstrapServers)
+  private val kmqConfig = new KmqConfig(bootstrapServers, "queue", "markers", "kmq_client", "kmq_redelivery",
+    Duration.ofSeconds(3).toMillis, 1000)
+  private val clients = new KafkaClients(kmqConfig)
   private val random: Random = new Random(0)
 
   private val processedMessages = new ConcurrentHashMap[Integer, Integer]

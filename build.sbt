@@ -3,7 +3,6 @@ import com.softwaremill.SbtSoftwareMillCommon.commonSmlBuildSettings
 import sbt.Keys._
 import sbt._
 
-val scala2_12 = "2.12.16"
 val scala2_13 = "2.13.8"
 
 val kafkaVersion = "3.2.1"
@@ -52,12 +51,12 @@ lazy val core = (projectMatrix in file("core"))
       "org.scalatest" %% "scalatest" % scalaTestVersion % Test,
       "org.scalatest" %% "scalatest-flatspec" % scalaTestVersion % Test,
       "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
-      "com.typesafe.akka" %% "akka-stream-testkit" % "2.6.19" % Test,
+      "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion % Test,
       "io.github.embeddedkafka" %% "embedded-kafka" % kafkaVersion % Test exclude ("javax.jms", "jms"),
       "ch.qos.logback" % "logback-classic" % logbackVersion % Test
     )
   )
-  .jvmPlatform(scalaVersions = Seq(scala2_12, scala2_13))
+  .jvmPlatform(scalaVersions = Seq(scala2_13))
 
 lazy val exampleJava = (projectMatrix in file("example-java"))
   .settings(commonSettings)
@@ -78,7 +77,7 @@ lazy val exampleScala = (projectMatrix in file("example-scala"))
     publishArtifact := false,
     libraryDependencies ++= List(
       "com.typesafe.akka" %% "akka-stream-kafka" % akkaStreamKafkaVersion,
-      "io.github.embeddedkafka" %% "embedded-kafka" % "2.7.0",
+      "io.github.embeddedkafka" %% "embedded-kafka" % embeddedKafkaVersion,
       "ch.qos.logback" % "logback-classic" % logbackVersion % Runtime
     )
   )

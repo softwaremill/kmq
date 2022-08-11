@@ -26,13 +26,13 @@ object StandaloneReactiveClient extends App with StrictLogging {
   import system.dispatcher
 
   val consumerSettings = ConsumerSettings(system, new StringDeserializer, new StringDeserializer)
-    .withBootstrapServers(bootstrapServer)
+    .withBootstrapServers(kmqConfig.getBootstrapServers)
     .withGroupId(kmqConfig.getMsgConsumerGroupId)
     .withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
 
   val markerProducerSettings =
     ProducerSettings(system, new MarkerKey.MarkerKeySerializer(), new MarkerValue.MarkerValueSerializer())
-      .withBootstrapServers(bootstrapServer)
+      .withBootstrapServers(kmqConfig.getBootstrapServers)
       .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[PartitionFromMarkerKey].getName)
 
   val random = new Random()
@@ -86,7 +86,7 @@ object StandaloneSender extends App with StrictLogging {
   implicit val system: ActorSystem = ActorSystem()
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   val producerSettings = ProducerSettings(system, new StringSerializer(), new StringSerializer())
-    .withBootstrapServers(bootstrapServer)
+    .withBootstrapServers(kmqConfig.getBootstrapServers)
 
   Source
     .tick(0.seconds, 100.millis, ())
@@ -110,7 +110,7 @@ object StandaloneSender extends App with StrictLogging {
 object StandaloneTracker extends App with StrictLogging {
   import StandaloneConfig._
 
-  val doClose = RedeliveryTracker.start(new KafkaClients(bootstrapServer), kmqConfig)
+  val doClose = RedeliveryTracker.start(new KafkaClients(kmqConfig), kmqConfig)
 
   logger.info("Press any key to exit ...")
   StdIn.readLine()
@@ -119,7 +119,6 @@ object StandaloneTracker extends App with StrictLogging {
 }
 
 object StandaloneConfig {
-  val bootstrapServer = "localhost:9092"
   val kmqConfig =
-    new KmqConfig("queue", "markers", "kmq_client", "kmq_redelivery", Duration.ofSeconds(10).toMillis, 1000)
+    new KmqConfig("localhost:9092", "queue", "markers", "kmq_client", "kmq_redelivery", Duration.ofSeconds(10).toMillis, 1000)
 }
