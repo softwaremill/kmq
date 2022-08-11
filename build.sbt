@@ -10,8 +10,13 @@ version := "0.3.0-SNAPSHOT"
 val scala2_12 = "2.12.16"
 val scala2_13 = "2.13.8"
 
-val scala2Versions = Seq(scala2_12, scala2_13)
-val examplesScalaVersions = List(scala2_12)
+val kafkaVersion = "2.7.2"
+val embeddedKafkaVersion = "2.7.0"
+val logbackVersion = "1.2.11"
+val akkaVersion = "2.6.19"
+val akkaStreamKafkaVersion = "2.1.1"
+val scalaLoggingVersion = "3.9.5"
+val scalaTestVersion = "3.2.12"
 
 lazy val commonSettings = commonSmlBuildSettings ++ ossPublishSettings ++ Seq(
   Test / parallelExecution := false,
@@ -49,31 +54,31 @@ lazy val core = (projectMatrix in file("core"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= List(
-      "org.apache.kafka" % "kafka-clients" % "2.7.2" exclude("org.scala-lang.modules", "scala-java8-compat"),
-      "com.typesafe.akka" %% "akka-actor" % "2.6.19",
-      "com.typesafe.akka" %% "akka-stream" % "2.6.19",
-      "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
-      "org.scalatest" %% "scalatest" % "3.2.12" % Test,
-      "org.scalatest" %% "scalatest-flatspec" % "3.2.12" % Test,
-      "com.typesafe.akka" %% "akka-testkit" % "2.6.19" % Test,
-      "com.typesafe.akka" %% "akka-stream-kafka" % "2.1.1" % Test,
-      "io.github.embeddedkafka" %% "embedded-kafka" % "2.7.0" % Test exclude("javax.jms", "jms"),
-      "ch.qos.logback" % "logback-classic" % "1.2.11" % Test
+      "org.apache.kafka" % "kafka-clients" % kafkaVersion exclude("org.scala-lang.modules", "scala-java8-compat"),
+      "com.typesafe.akka" %% "akka-actor" % akkaVersion,
+      "com.typesafe.akka" %% "akka-stream" % akkaVersion,
+      "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
+      "org.scalatest" %% "scalatest" % scalaTestVersion % Test,
+      "org.scalatest" %% "scalatest-flatspec" % scalaTestVersion % Test,
+      "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
+      "com.typesafe.akka" %% "akka-stream-kafka" % akkaStreamKafkaVersion % Test,
+      "io.github.embeddedkafka" %% "embedded-kafka" % embeddedKafkaVersion % Test exclude("javax.jms", "jms"),
+      "ch.qos.logback" % "logback-classic" % logbackVersion % Test
     )
   )
-  .jvmPlatform(scalaVersions = scala2Versions)
+  .jvmPlatform(scalaVersions = Seq(scala2_12, scala2_13))
 
 lazy val exampleJava = (projectMatrix in file("example-java"))
   .settings(commonSettings)
   .settings(
     publishArtifact := false,
     libraryDependencies ++= List(
-      "org.apache.kafka" %% "kafka" % "2.7.2",
-      "io.github.embeddedkafka" %% "embedded-kafka" % "2.7.0",
-      "ch.qos.logback" % "logback-classic" % "1.2.11" % Runtime
+      "org.apache.kafka" %% "kafka" % kafkaVersion,
+      "io.github.embeddedkafka" %% "embedded-kafka" % embeddedKafkaVersion,
+      "ch.qos.logback" % "logback-classic" % logbackVersion % Runtime
     )
   )
-  .jvmPlatform(scalaVersions = examplesScalaVersions)
+  .jvmPlatform(scalaVersions = Seq(scala2_12))
   .dependsOn(core)
 
 lazy val exampleScala = (projectMatrix in file("example-scala"))
@@ -81,9 +86,9 @@ lazy val exampleScala = (projectMatrix in file("example-scala"))
   .settings(
     publishArtifact := false,
     libraryDependencies ++= List(
-      "com.typesafe.akka" %% "akka-stream-kafka" % "2.1.1",
-      "ch.qos.logback" % "logback-classic" % "1.2.11" % Runtime
+      "com.typesafe.akka" %% "akka-stream-kafka" % akkaStreamKafkaVersion,
+      "ch.qos.logback" % "logback-classic" % logbackVersion % Runtime
     )
   )
-  .jvmPlatform(scalaVersions = examplesScalaVersions)
+  .jvmPlatform(scalaVersions = Seq(scala2_12))
   .dependsOn(core)
