@@ -34,7 +34,7 @@ class IntegrationTest
   "KMQ" should "resend message if not committed" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
-    val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery", 1000, 1000)
+    val kmqConfig = new KmqConfig(bootstrapServer, s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery", 1000, 1000)
 
     val consumerSettings = ConsumerSettings(system, new StringDeserializer, new StringDeserializer)
       .withBootstrapServers(bootstrapServer)
@@ -44,7 +44,7 @@ class IntegrationTest
     val markerProducerSettings =
       ProducerSettings(system, new MarkerKey.MarkerKeySerializer(), new MarkerValue.MarkerValueSerializer())
         .withBootstrapServers(bootstrapServer)
-        .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
+        .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[PartitionFromMarkerKey].getName)
 
     val random = new Random()
 
@@ -84,7 +84,7 @@ class IntegrationTest
       .to(Producer.plainSink(markerProducerSettings)) // 5. write "end" markers
       .run()
 
-    val redeliveryHook = RedeliveryTracker.start(new KafkaClients(bootstrapServer), kmqConfig)
+    val redeliveryHook = RedeliveryTracker.start(new KafkaClients(kmqConfig), kmqConfig)
 
     val messages = (0 to 20).map(_.toString)
     messages.foreach(msg => sendToKafka(kmqConfig.getMsgTopic, msg))
@@ -101,7 +101,7 @@ class IntegrationTest
   "KMQ" should "resend message if max redelivery count not exceeded" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
-    val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery", 1000, 1000)
+    val kmqConfig = new KmqConfig(bootstrapServer, s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery", 1000, 1000)
 
     val consumerSettings = ConsumerSettings(system, new StringDeserializer, new StringDeserializer)
       .withBootstrapServers(bootstrapServer)
@@ -111,7 +111,7 @@ class IntegrationTest
     val markerProducerSettings =
       ProducerSettings(system, new MarkerKey.MarkerKeySerializer(), new MarkerValue.MarkerValueSerializer())
         .withBootstrapServers(bootstrapServer)
-        .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
+        .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[PartitionFromMarkerKey].getName)
 
     lazy val receivedMessages = ArrayBuffer[String]()
     lazy val undeliveredMessages = ArrayBuffer[String]()
@@ -160,7 +160,7 @@ class IntegrationTest
       .to(Sink.ignore)
       .run()
 
-    val redeliveryHook = RedeliveryTracker.start(new KafkaClients(bootstrapServer), kmqConfig)
+    val redeliveryHook = RedeliveryTracker.start(new KafkaClients(kmqConfig), kmqConfig)
 
     val messages = (0 to 6).map(_.toString)
     messages.foreach(msg => sendToKafka(kmqConfig.getMsgTopic, msg))

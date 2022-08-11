@@ -36,13 +36,13 @@ class CommitMarkerSinkIntegrationTest extends TestKit(ActorSystem("test-system")
   "CommitMarkerSink" should "commit all markers before first open StartMarker" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
-    val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
+    val kmqConfig = new KmqConfig(bootstrapServer, s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
       1000, 1000)
 
     val markerConsumerSettings = ConsumerSettings(system, markerKeyDeserializer, markerValueDeserializer)
       .withBootstrapServers(bootstrapServer)
       .withGroupId(kmqConfig.getRedeliveryConsumerGroupId)
-      .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
+      .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[PartitionFromMarkerKey].getName)
 
     val streamControl = Consumer.committableSource(markerConsumerSettings, Subscriptions.topics(kmqConfig.getMarkerTopic))
       .toMat(CommitMarkerSink())(DrainingControl.apply)

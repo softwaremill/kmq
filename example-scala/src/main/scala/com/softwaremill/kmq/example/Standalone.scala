@@ -33,7 +33,7 @@ object StandaloneReactiveClient extends App with StrictLogging {
   val markerProducerSettings =
     ProducerSettings(system, new MarkerKey.MarkerKeySerializer(), new MarkerValue.MarkerValueSerializer())
       .withBootstrapServers(bootstrapServer)
-      .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
+      .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[PartitionFromMarkerKey].getName)
 
   val random = new Random()
 

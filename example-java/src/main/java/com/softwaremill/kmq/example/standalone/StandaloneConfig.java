@@ -6,7 +6,8 @@ import com.softwaremill.kmq.KmqConfig;
 import java.time.Duration;
 
 class StandaloneConfig {
-    static final KmqConfig KMQ_CONFIG = new KmqConfig("queue", "markers", "kmq_client", "kmq_redelivery",
+    static final KmqConfig KMQ_CONFIG = new KmqConfig("localhost:9092",
+            "queue", "markers", "kmq_client", "kmq_redelivery",
             Duration.ofSeconds(90).toMillis(), 1000);
 
     /* EXAMPLE with extraConfig : SSL Encryption & SSL Authentication
@@ -22,8 +23,11 @@ class StandaloneConfig {
         extraConfig.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, "test1234");
         extraConfig.put(SslConfigs.SSL_KEY_PASSWORD_CONFIG, "test1234");
 
-        static final KafkaClients KAFKA_CLIENTS = new KafkaClients("localhost:9092", extraConfig);
+        static final KmqConfig KMQ_CONFIG = new KmqConfig("localhost:9092",
+                "queue", "markers", "kmq_client", "kmq_redelivery",
+                Duration.ofSeconds(90).toMillis(), 1000,
+                extraConfig);
     */
 
-    static final KafkaClients KAFKA_CLIENTS = new KafkaClients("localhost:9092");
+    static final KafkaClients KAFKA_CLIENTS = new KafkaClients(KMQ_CONFIG);
 }

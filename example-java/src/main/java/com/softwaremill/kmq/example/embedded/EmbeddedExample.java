@@ -32,11 +32,12 @@ public class EmbeddedExample {
     public static void main(String[] args) throws IOException {
         UncaughtExceptionHandling.setup();
         
-        KmqConfig kmqConfig = new KmqConfig("queue", "markers", "kmq_client", "kmq_redelivery",
+        EmbeddedKafkaConfig kafkaConfig = EmbeddedKafkaConfig$.MODULE$.defaultConfig();
+        KmqConfig kmqConfig = new KmqConfig("localhost:" + kafkaConfig.kafkaPort(),
+                "queue", "markers", "kmq_client", "kmq_redelivery",
                 Duration.ofSeconds(10).toMillis(), 1000);
 
-        EmbeddedKafkaConfig kafkaConfig = EmbeddedKafkaConfig$.MODULE$.defaultConfig();
-        KafkaClients clients = new KafkaClients("localhost:" + kafkaConfig.kafkaPort());
+        KafkaClients clients = new KafkaClients(kmqConfig);
 
         EmbeddedKafka$.MODULE$.start(kafkaConfig);
         // The offsets topic has the same # of partitions as the queue topic.

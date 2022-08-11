@@ -2,15 +2,15 @@ package com.softwaremill.kmq.redelivery.streams
 
 import akka.actor.ActorSystem
 import akka.kafka.ConsumerSettings
-import com.softwaremill.kmq.{KafkaClients, KmqConfig, MarkerKey, MarkerValue, ParititionFromMarkerKey}
+import com.softwaremill.kmq._
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.Deserializer
 
 import java.io.Closeable
 import java.time.Clock
-import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration.DurationInt
+import scala.concurrent.{Await, ExecutionContext}
 
 object RedeliveryTracker extends StrictLogging {
 
@@ -22,9 +22,10 @@ object RedeliveryTracker extends StrictLogging {
     implicit val markerValueDeserializer: Deserializer[MarkerValue] = new MarkerValue.MarkerValueDeserializer()
 
     val markerConsumerSettings = ConsumerSettings(system, markerKeyDeserializer, markerValueDeserializer)
-      .withBootstrapServers(kafkaClients.getBootstrapServers)
+      .withBootstrapServers(config.getBootstrapServers)
       .withGroupId(config.getRedeliveryConsumerGroupId)
-      .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
+      .withProperties(config.getConsumerProps)
+      .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[PartitionFromMarkerKey].getName)
 
     val streamControl = new RedeliveryTrackerStream(markerConsumerSettings, config.getMarkerTopic, Int.MaxValue)
       .run()

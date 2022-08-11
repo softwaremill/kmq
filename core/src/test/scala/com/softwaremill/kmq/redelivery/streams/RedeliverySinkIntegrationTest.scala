@@ -18,7 +18,7 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.time.{Seconds, Span}
 
 import java.time.Clock
-import java.util.UUID
+import java.util.{Collections, UUID}
 import scala.concurrent.ExecutionContext
 
 class RedeliverySinkIntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecLike with KafkaSpec with BeforeAndAfterAll with Eventually {
@@ -39,15 +39,15 @@ class RedeliverySinkIntegrationTest extends TestKit(ActorSystem("test-system")) 
     val maxRedeliveryCount = 1
     val redeliverAfterMs = 300
 
-    implicit val kafkaClients: KafkaClients = new KafkaClients(bootstrapServer)
-    implicit val kmqConfig: KmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
-      1000, 1000, s"${uid}__undelivered", "kmq-redelivery-count", maxRedeliveryCount)
+    implicit val kmqConfig: KmqConfig = new KmqConfig(bootstrapServer, s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
+      1000, 1000, s"${uid}__undelivered", "kmq-redelivery-count", maxRedeliveryCount, Collections.emptyMap())
+    implicit val kafkaClients: KafkaClients = new KafkaClients(kmqConfig)
     implicit val clock: Clock = Clock.systemDefaultZone()
 
     val markerConsumerSettings = ConsumerSettings(system, markerKeyDeserializer, markerValueDeserializer)
       .withBootstrapServers(bootstrapServer)
       .withGroupId(kmqConfig.getRedeliveryConsumerGroupId)
-      .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
+      .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[PartitionFromMarkerKey].getName)
 
     val streamControl = Consumer.committablePartitionedSource(markerConsumerSettings, Subscriptions.topics(kmqConfig.getMarkerTopic))
       .map { case (topicPartition, source) =>
