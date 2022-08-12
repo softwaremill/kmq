@@ -77,7 +77,7 @@ lazy val exampleScala = (projectMatrix in file("example-scala"))
     publishArtifact := false,
     libraryDependencies ++= List(
       "com.typesafe.akka" %% "akka-stream-kafka" % akkaStreamKafkaVersion,
-      "io.github.embeddedkafka" %% "embedded-kafka" % embeddedKafkaVersion,
+      "io.github.embeddedkafka" %% "embedded-kafka" % kafkaVersion,
       "ch.qos.logback" % "logback-classic" % logbackVersion % Runtime
     )
   )
