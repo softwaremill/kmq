@@ -3,7 +3,7 @@ package com.softwaremill.kmq.example
 import com.softwaremill.kmq.redelivery.streams.RedeliveryTracker
 import com.softwaremill.kmq.{KafkaClients, KmqClient, KmqConfig}
 import com.typesafe.scalalogging.StrictLogging
-import net.manub.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
+import io.github.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.serialization.{ByteBufferDeserializer, ByteBufferSerializer}
