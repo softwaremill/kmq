@@ -16,7 +16,7 @@ class MarkersQueueTest extends AnyFlatSpec {
 
     // then
     toRedeliver should have size 1
-    toRedeliver.head.getMessageOffset should be (1000)
+    toRedeliver.head.getMessageOffset should be(1000)
   }
 
   it should "redeliver multiple markers" in {
@@ -30,6 +30,6 @@ class MarkersQueueTest extends AnyFlatSpec {
 
     // then
     toRedeliver should have size 2
-    toRedeliver.map(_.getMessageOffset).toSet should be (Set(1001L, 1000L))
+    toRedeliver.map(_.getMessageOffset).toSet should be(Set(1001L, 1000L))
   }
 }

@@ -20,7 +20,12 @@ import org.scalatest.time.{Seconds, Span}
 import java.util.{Random, UUID}
 import scala.collection.mutable.ArrayBuffer
 
-class IntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecLike with KafkaSpec with BeforeAndAfterAll with Eventually {
+class IntegrationTest
+    extends TestKit(ActorSystem("test-system"))
+    with AnyFlatSpecLike
+    with KafkaSpec
+    with BeforeAndAfterAll
+    with Eventually {
 
   implicit val materializer = ActorMaterializer()
 
@@ -29,28 +34,34 @@ class IntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSp
   "KMQ" should "resend message if not committed" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
-    val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
-      1000, 1000)
+    val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery", 1000, 1000)
 
     val consumerSettings = ConsumerSettings(system, new StringDeserializer, new StringDeserializer)
       .withBootstrapServers(bootstrapServer)
       .withGroupId(kmqConfig.getMsgConsumerGroupId)
       .withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
 
-    val markerProducerSettings = ProducerSettings(system,
-      new MarkerKey.MarkerKeySerializer(), new MarkerValue.MarkerValueSerializer())
-      .withBootstrapServers(bootstrapServer)
-      .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
+    val markerProducerSettings =
+      ProducerSettings(system, new MarkerKey.MarkerKeySerializer(), new MarkerValue.MarkerValueSerializer())
+        .withBootstrapServers(bootstrapServer)
+        .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
 
     val random = new Random()
 
     lazy val processedMessages = ArrayBuffer[String]()
     lazy val receivedMessages = ArrayBuffer[String]()
 
-    val control = Consumer.committableSource(consumerSettings, Subscriptions.topics(kmqConfig.getMsgTopic)) // 1. get messages from topic
+    val control = Consumer
+      .committableSource(consumerSettings, Subscriptions.topics(kmqConfig.getMsgTopic)) // 1. get messages from topic
       .map { msg =>
         ProducerMessage.Message(
-          new ProducerRecord[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, MarkerKey.fromRecord(msg.record), new StartMarker(kmqConfig.getMsgTimeoutMs)), msg)
+          new ProducerRecord[MarkerKey, MarkerValue](
+            kmqConfig.getMarkerTopic,
+            MarkerKey.fromRecord(msg.record),
+            new StartMarker(kmqConfig.getMsgTimeoutMs)
+          ),
+          msg
+        )
       }
       .via(Producer.flexiFlow(markerProducerSettings)) // 2. write the "start" marker
       .map(_.passThrough)
@@ -64,7 +75,11 @@ class IntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSp
       .filter(_ => random.nextInt(5) != 0)
       .map { processedMessage =>
         processedMessages += processedMessage.value
-        new ProducerRecord[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, MarkerKey.fromRecord(processedMessage), EndMarker.INSTANCE)
+        new ProducerRecord[MarkerKey, MarkerValue](
+          kmqConfig.getMarkerTopic,
+          MarkerKey.fromRecord(processedMessage),
+          EndMarker.INSTANCE
+        )
       }
       .to(Producer.plainSink(markerProducerSettings)) // 5. write "end" markers
       .run()
@@ -86,26 +101,32 @@ class IntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSp
   "KMQ" should "resend message if max redelivery count not exceeded" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
-    val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
-      1000, 1000)
+    val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery", 1000, 1000)
 
     val consumerSettings = ConsumerSettings(system, new StringDeserializer, new StringDeserializer)
       .withBootstrapServers(bootstrapServer)
       .withGroupId(kmqConfig.getMsgConsumerGroupId)
       .withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
 
-    val markerProducerSettings = ProducerSettings(system,
-      new MarkerKey.MarkerKeySerializer(), new MarkerValue.MarkerValueSerializer())
-      .withBootstrapServers(bootstrapServer)
-      .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
+    val markerProducerSettings =
+      ProducerSettings(system, new MarkerKey.MarkerKeySerializer(), new MarkerValue.MarkerValueSerializer())
+        .withBootstrapServers(bootstrapServer)
+        .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
 
     lazy val receivedMessages = ArrayBuffer[String]()
     lazy val undeliveredMessages = ArrayBuffer[String]()
 
-    val control = Consumer.committableSource(consumerSettings, Subscriptions.topics(kmqConfig.getMsgTopic)) // 1. get messages from topic
+    val control = Consumer
+      .committableSource(consumerSettings, Subscriptions.topics(kmqConfig.getMsgTopic)) // 1. get messages from topic
       .map { msg =>
         ProducerMessage.Message(
-          new ProducerRecord[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, MarkerKey.fromRecord(msg.record), new StartMarker(kmqConfig.getMsgTimeoutMs)), msg)
+          new ProducerRecord[MarkerKey, MarkerValue](
+            kmqConfig.getMarkerTopic,
+            MarkerKey.fromRecord(msg.record),
+            new StartMarker(kmqConfig.getMsgTimeoutMs)
+          ),
+          msg
+        )
       }
       .via(Producer.flexiFlow(markerProducerSettings)) // 2. write the "start" marker
       .map(_.passThrough)
@@ -118,12 +139,20 @@ class IntegrationTest extends TestKit(ActorSystem("test-system")) with AnyFlatSp
       }
       .filter(msg => msg.value.toInt % 3 != 0)
       .map { processedMessage =>
-        new ProducerRecord[MarkerKey, MarkerValue](kmqConfig.getMarkerTopic, MarkerKey.fromRecord(processedMessage), EndMarker.INSTANCE)
+        new ProducerRecord[MarkerKey, MarkerValue](
+          kmqConfig.getMarkerTopic,
+          MarkerKey.fromRecord(processedMessage),
+          EndMarker.INSTANCE
+        )
       }
       .to(Producer.plainSink(markerProducerSettings)) // 5. write "end" markers
       .run()
 
-    val undeliveredControl = Consumer.plainSource(consumerSettings, Subscriptions.topics(s"${kmqConfig.getMsgTopic}__undelivered")) // 1. get messages from dead-letter topic
+    val undeliveredControl = Consumer
+      .plainSource(
+        consumerSettings,
+        Subscriptions.topics(s"${kmqConfig.getMsgTopic}__undelivered")
+      ) // 1. get messages from dead-letter topic
       .map { msg =>
         undeliveredMessages += msg.value
         msg
