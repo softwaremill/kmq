@@ -6,8 +6,7 @@ import sbt._
 val scala2_12 = "2.12.16"
 val scala2_13 = "2.13.8"
 
-val kafkaVersion = "2.8.1"
-val embeddedKafkaVersion = "2.8.1"
+val kafkaVersion = "3.2.1"
 val logbackVersion = "1.2.11"
 val akkaVersion = "2.6.19"
 val akkaStreamKafkaVersion = "2.1.1"
@@ -53,7 +52,7 @@ lazy val core = (projectMatrix in file("core"))
       "org.scalatest" %% "scalatest-flatspec" % scalaTestVersion % Test,
       "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
       "com.typesafe.akka" %% "akka-stream-kafka" % akkaStreamKafkaVersion % Test,
-      "io.github.embeddedkafka" %% "embedded-kafka" % embeddedKafkaVersion % Test exclude ("javax.jms", "jms"),
+      "io.github.embeddedkafka" %% "embedded-kafka" % kafkaVersion % Test exclude ("javax.jms", "jms"),
       "ch.qos.logback" % "logback-classic" % logbackVersion % Test
     )
   )
@@ -65,7 +64,7 @@ lazy val exampleJava = (projectMatrix in file("example-java"))
     publishArtifact := false,
     libraryDependencies ++= List(
       "org.apache.kafka" %% "kafka" % kafkaVersion,
-      "io.github.embeddedkafka" %% "embedded-kafka" % embeddedKafkaVersion,
+      "io.github.embeddedkafka" %% "embedded-kafka" % kafkaVersion,
       "ch.qos.logback" % "logback-classic" % logbackVersion % Runtime
     )
   )
