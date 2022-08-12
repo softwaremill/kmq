@@ -6,7 +6,7 @@ import sbt._
 val scala2_12 = "2.12.16"
 val scala2_13 = "2.13.8"
 
-val kafkaVersion = "2.7.2"
+val kafkaVersion = "2.8.1"
 val embeddedKafkaVersion = "2.7.0"
 val logbackVersion = "1.2.11"
 val akkaVersion = "2.6.19"
@@ -45,7 +45,7 @@ lazy val core = (projectMatrix in file("core"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= List(
-      "org.apache.kafka" % "kafka-clients" % kafkaVersion exclude("org.scala-lang.modules", "scala-java8-compat"),
+      "org.apache.kafka" % "kafka-clients" % kafkaVersion exclude ("org.scala-lang.modules", "scala-java8-compat"),
       "com.typesafe.akka" %% "akka-actor" % akkaVersion,
       "com.typesafe.akka" %% "akka-stream" % akkaVersion,
       "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
@@ -53,7 +53,7 @@ lazy val core = (projectMatrix in file("core"))
       "org.scalatest" %% "scalatest-flatspec" % scalaTestVersion % Test,
       "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
       "com.typesafe.akka" %% "akka-stream-kafka" % akkaStreamKafkaVersion % Test,
-      "io.github.embeddedkafka" %% "embedded-kafka" % embeddedKafkaVersion % Test exclude("javax.jms", "jms"),
+      "io.github.embeddedkafka" %% "embedded-kafka" % embeddedKafkaVersion % Test exclude ("javax.jms", "jms"),
       "ch.qos.logback" % "logback-classic" % logbackVersion % Test
     )
   )
