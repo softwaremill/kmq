@@ -69,7 +69,7 @@ class RedeliveryTrackerStreamIntegrationTest extends TestKit(ActorSystem("test-s
     streamControl.drainAndShutdown()
   }
 
-  "RedeliveryTrackerStream" should "commit all markers before first open StartMarker" in {
+  it should "commit all markers before first open StartMarker" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
     val redeliverAfterMs = 300
