@@ -4,7 +4,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.serialization.Deserializer;
@@ -51,8 +50,7 @@ public class KmqClient<K, V> implements Closeable {
         this.msgConsumer = clients.createConsumer(config.getMsgConsumerGroupId(), keyDeserializer, valueDeserializer);
         // Using the custom partitioner, each offset-partition will contain markers only from a single queue-partition.
         this.markerProducer = clients.createProducer(
-                MarkerKey.MarkerKeySerializer.class, MarkerValue.MarkerValueSerializer.class,
-                Collections.singletonMap(ProducerConfig.PARTITIONER_CLASS_CONFIG, ParititionFromMarkerKey.class));
+                MarkerKey.MarkerKeySerializer.class, MarkerValue.MarkerValueSerializer.class, PartitionFromMarkerKey.class);
 
         LOG.info(String.format("Subscribing to topic: %s, using group id: %s", config.getMsgTopic(), config.getMsgConsumerGroupId()));
         msgConsumer.subscribe(Collections.singletonList(config.getMsgTopic()));

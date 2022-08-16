@@ -2,9 +2,9 @@ package com.softwaremill.kmq.example.embedded;
 
 import com.softwaremill.kmq.*;
 import com.softwaremill.kmq.example.UncaughtExceptionHandling;
-import net.manub.embeddedkafka.EmbeddedKafka$;
-import net.manub.embeddedkafka.EmbeddedKafkaConfig;
-import net.manub.embeddedkafka.EmbeddedKafkaConfig$;
+import io.github.embeddedkafka.EmbeddedKafka$;
+import io.github.embeddedkafka.EmbeddedKafkaConfig;
+import io.github.embeddedkafka.EmbeddedKafkaConfig$;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -12,7 +12,7 @@ import org.apache.kafka.common.serialization.ByteBufferDeserializer;
 import org.apache.kafka.common.serialization.ByteBufferSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.collection.Map$;
+import scala.collection.immutable.Map$;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -32,11 +32,12 @@ public class EmbeddedExample {
     public static void main(String[] args) throws IOException {
         UncaughtExceptionHandling.setup();
         
-        KmqConfig kmqConfig = new KmqConfig("queue", "markers", "kmq_client", "kmq_redelivery",
+        EmbeddedKafkaConfig kafkaConfig = EmbeddedKafkaConfig$.MODULE$.defaultConfig();
+        KmqConfig kmqConfig = new KmqConfig("localhost:" + kafkaConfig.kafkaPort(),
+                "queue", "markers", "kmq_client", "kmq_redelivery",
                 Duration.ofSeconds(10).toMillis(), 1000);
 
-        EmbeddedKafkaConfig kafkaConfig = EmbeddedKafkaConfig$.MODULE$.defaultConfig();
-        KafkaClients clients = new KafkaClients("localhost:" + kafkaConfig.kafkaPort());
+        KafkaClients clients = new KafkaClients(kmqConfig);
 
         EmbeddedKafka$.MODULE$.start(kafkaConfig);
         // The offsets topic has the same # of partitions as the queue topic.

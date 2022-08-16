@@ -36,7 +36,7 @@ class DefaultRedeliverer(
     new SingleOffsetReader(tp, c)
   }
 
-  def redeliver(toRedeliver: List[MarkerKey]) {
+  def redeliver(toRedeliver: List[MarkerKey]): Unit = {
     toRedeliver
       .map(m => RedeliveredMarker(m, redeliver(m)))
       .foreach(rm => {

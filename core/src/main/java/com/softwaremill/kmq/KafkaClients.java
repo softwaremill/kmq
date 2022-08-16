@@ -3,51 +3,36 @@ package com.softwaremill.kmq;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serializer;
 
-import java.util.Collections;
 import java.util.Map;
-import java.util.Properties;
 
 public class KafkaClients {
-    private final String bootstrapServers;
-    private final Map<String, Object> extraGlobalConfig;
+    private final KmqConfig kmqConfig;
 
-    public KafkaClients(String bootstrapServers) {
-        this(bootstrapServers, Collections.emptyMap());
-    }
-
-    /**
-     * @param extraGlobalConfig Extra Kafka parameter configuration, e.g. SSL
-     */
-    public KafkaClients(String bootstrapServers, Map<String, Object> extraGlobalConfig) {
-        this.bootstrapServers = bootstrapServers;
-        this.extraGlobalConfig = extraGlobalConfig;
+    public KafkaClients(KmqConfig kmqConfig) {
+        this.kmqConfig = kmqConfig;
     }
 
     public <K, V> KafkaProducer<K, V> createProducer(Class<? extends Serializer<K>> keySerializer,
                                                      Class<? extends Serializer<V>> valueSerializer) {
-        return createProducer(keySerializer, valueSerializer, Collections.emptyMap());
+        return createProducer(keySerializer, valueSerializer, null);
     }
 
-    public <K, V> KafkaProducer<K, V>  createProducer(Class<? extends Serializer<K>> keySerializer,
-                                                      Class<? extends Serializer<V>> valueSerializer,
-                                                      Map<String, Object> extraConfig) {
-        Properties props = new Properties();
-        props.put("bootstrap.servers", bootstrapServers);
-        props.put("acks", "all");
-        props.put("retries", 0);
-        props.put("batch.size", 16384);
-        props.put("linger.ms", 1);
-        props.put("buffer.memory", 33554432);
-        props.put("key.serializer", keySerializer.getName());
-        props.put("value.serializer", valueSerializer.getName());
-        for (Map.Entry<String, Object> extraCfgEntry : extraConfig.entrySet()) {
-            props.put(extraCfgEntry.getKey(), extraCfgEntry.getValue());
+    public <K, V> KafkaProducer<K, V> createProducer(Class<? extends Serializer<K>> keySerializer,
+                                                     Class<? extends Serializer<V>> valueSerializer,
+                                                     Class<? extends KeyValuePartitioner<K, V>> keyValuePartitioner) {
+        Map<String, Object> props = (Map)kmqConfig.getProducerProps();
+        if (keySerializer != null) {
+            props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, keySerializer.getName());
         }
-        for (Map.Entry<String, Object> extraCfgEntry : extraGlobalConfig.entrySet()) {
-            props.put(extraCfgEntry.getKey(), extraCfgEntry.getValue());
+        if (valueSerializer != null) {
+            props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, valueSerializer.getName());
+        }
+        if (keyValuePartitioner != null) {
+            props.put(ProducerConfig.PARTITIONER_CLASS_CONFIG, keyValuePartitioner);
         }
 
         return new KafkaProducer<>(props);
@@ -56,27 +41,15 @@ public class KafkaClients {
     public <K, V> KafkaConsumer<K, V> createConsumer(String groupId,
                                                      Class<? extends Deserializer<K>> keyDeserializer,
                                                      Class<? extends Deserializer<V>> valueDeserializer) {
-        return createConsumer(groupId, keyDeserializer, valueDeserializer, Collections.emptyMap());
-    }
-
-    public <K, V> KafkaConsumer<K, V> createConsumer(String groupId,
-                                                     Class<? extends Deserializer<K>> keyDeserializer,
-                                                     Class<? extends Deserializer<V>> valueDeserializer,
-                                                     Map<String, Object> extraConfig) {
-        Properties props = new Properties();
-        props.put("bootstrap.servers", bootstrapServers);
-        props.put("enable.auto.commit", "false");
-        props.put("key.deserializer", keyDeserializer.getName());
-        props.put("value.deserializer", valueDeserializer.getName());
-        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        Map<String, Object> props = (Map)kmqConfig.getConsumerProps();
         if (groupId != null) {
             props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         }
-        for (Map.Entry<String, Object> extraCfgEntry : extraConfig.entrySet()) {
-            props.put(extraCfgEntry.getKey(), extraCfgEntry.getValue());
+        if (keyDeserializer != null) {
+            props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, keyDeserializer.getName());
         }
-        for (Map.Entry<String, Object> extraCfgEntry : extraGlobalConfig.entrySet()) {
-            props.put(extraCfgEntry.getKey(), extraCfgEntry.getValue());
+        if (valueDeserializer != null) {
+            props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, valueDeserializer.getName());
         }
 
         return new KafkaConsumer<>(props);

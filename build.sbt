@@ -3,16 +3,14 @@ import com.softwaremill.SbtSoftwareMillCommon.commonSmlBuildSettings
 import sbt.Keys._
 import sbt._
 
-val scala2_12 = "2.12.16"
 val scala2_13 = "2.13.8"
 
-val kafkaVersion = "2.7.2"
-val embeddedKafkaVersion = "2.7.0"
+val kafkaVersion = "3.2.1"
 val logbackVersion = "1.2.11"
 val akkaVersion = "2.6.19"
 val akkaStreamKafkaVersion = "2.1.1"
 val scalaLoggingVersion = "3.9.5"
-val scalaTestVersion = "3.2.12"
+val scalaTestVersion = "3.2.13"
 
 // slow down Tests for CI
 parallelExecution in Global := false
@@ -45,19 +43,20 @@ lazy val core = (projectMatrix in file("core"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= List(
-      "org.apache.kafka" % "kafka-clients" % kafkaVersion exclude("org.scala-lang.modules", "scala-java8-compat"),
+      "org.apache.kafka" % "kafka-clients" % kafkaVersion exclude ("org.scala-lang.modules", "scala-java8-compat"),
       "com.typesafe.akka" %% "akka-actor" % akkaVersion,
       "com.typesafe.akka" %% "akka-stream" % akkaVersion,
+      "com.typesafe.akka" %% "akka-stream-kafka" % akkaStreamKafkaVersion,
       "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
       "org.scalatest" %% "scalatest" % scalaTestVersion % Test,
       "org.scalatest" %% "scalatest-flatspec" % scalaTestVersion % Test,
       "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
-      "com.typesafe.akka" %% "akka-stream-kafka" % akkaStreamKafkaVersion % Test,
-      "io.github.embeddedkafka" %% "embedded-kafka" % embeddedKafkaVersion % Test exclude("javax.jms", "jms"),
+      "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion % Test,
+      "io.github.embeddedkafka" %% "embedded-kafka" % kafkaVersion % Test exclude ("javax.jms", "jms"),
       "ch.qos.logback" % "logback-classic" % logbackVersion % Test
     )
   )
-  .jvmPlatform(scalaVersions = Seq(scala2_12, scala2_13))
+  .jvmPlatform(scalaVersions = Seq(scala2_13))
 
 lazy val exampleJava = (projectMatrix in file("example-java"))
   .settings(commonSettings)
@@ -65,11 +64,11 @@ lazy val exampleJava = (projectMatrix in file("example-java"))
     publishArtifact := false,
     libraryDependencies ++= List(
       "org.apache.kafka" %% "kafka" % kafkaVersion,
-      "io.github.embeddedkafka" %% "embedded-kafka" % embeddedKafkaVersion,
+      "io.github.embeddedkafka" %% "embedded-kafka" % kafkaVersion,
       "ch.qos.logback" % "logback-classic" % logbackVersion % Runtime
     )
   )
-  .jvmPlatform(scalaVersions = Seq(scala2_12))
+  .jvmPlatform(scalaVersions = Seq(scala2_13))
   .dependsOn(core)
 
 lazy val exampleScala = (projectMatrix in file("example-scala"))
@@ -78,8 +77,9 @@ lazy val exampleScala = (projectMatrix in file("example-scala"))
     publishArtifact := false,
     libraryDependencies ++= List(
       "com.typesafe.akka" %% "akka-stream-kafka" % akkaStreamKafkaVersion,
+      "io.github.embeddedkafka" %% "embedded-kafka" % kafkaVersion,
       "ch.qos.logback" % "logback-classic" % logbackVersion % Runtime
     )
   )
-  .jvmPlatform(scalaVersions = Seq(scala2_12))
+  .jvmPlatform(scalaVersions = Seq(scala2_13))
   .dependsOn(core)

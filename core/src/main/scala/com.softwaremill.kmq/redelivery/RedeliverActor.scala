@@ -21,7 +21,7 @@ class RedeliverActor(p: Partition, redeliverer: Redeliverer) extends Actor with 
     catch {
       case e: Exception => logger.error(s"Cannot close redeliverer for partition $p", e)
     }
-    
+
     logger.info(s"${self.path} Stopped redeliver actor for partition $p")
   }
 
