@@ -21,7 +21,7 @@ class LearningTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecL
   implicit val materializer: Materializer = akka.stream.Materializer.matFromSystem
   implicit val ec: ExecutionContext = system.dispatcher
 
-  "FooStream" should "merge ticks" in {
+  it should "merge ticks" in {
     Source
       .tick(0.1.second, 0.1.second, "tick")
       .merge(Source.tick(0.17.second, 0.17.second, "tack"))
@@ -29,7 +29,7 @@ class LearningTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecL
       .runWith(TestSink[String]).request(10).expectNextN(10)
   }
 
-  "FooStream" should "broadcast to sinks" in {
+  it should "broadcast to sinks" in {
     val source = Source.fromIterator(() => Seq(1, 2, 3).iterator)
 
     val multiplyBy2: Sink[Int, Future[Done]] = Flow[Int].map(_ * 2).wireTap(x => println(s"2: $x")).toMat(Sink.ignore)(Keep.right)
@@ -49,7 +49,7 @@ class LearningTest extends TestKit(ActorSystem("test-system")) with AnyFlatSpecL
       .run()
   }
 
-  "FooStream" should "async broadcast to sinks" in {
+  it should "async broadcast to sinks" in {
     val source = Source.fromIterator(() => Seq(1, 2, 3).iterator)
 
     val multiplyBy2: Sink[Int, Future[Done]] = Flow[Int].map(_ * 2).wireTap(x => println(s"2: $x")).toMat(Sink.ignore)(Keep.right)
