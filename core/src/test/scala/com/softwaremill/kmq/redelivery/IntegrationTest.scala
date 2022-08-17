@@ -34,7 +34,9 @@ class IntegrationTest
   "KMQ" should "resend message if not committed" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
-    val kmqConfig = new KmqConfig(bootstrapServer, s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery", 1000, 1000)
+
+    implicit val kmqConfig: KmqConfig = new KmqConfig(bootstrapServer, s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery", 1000, 1000)
+    implicit val kafkaClients: KafkaClients = new KafkaClients(kmqConfig)
 
     val consumerSettings = ConsumerSettings(system, new StringDeserializer, new StringDeserializer)
       .withBootstrapServers(bootstrapServer)
@@ -84,7 +86,7 @@ class IntegrationTest
       .to(Producer.plainSink(markerProducerSettings)) // 5. write "end" markers
       .run()
 
-    val redeliveryHook = RedeliveryTracker.start(new KafkaClients(kmqConfig), kmqConfig)
+    val redeliveryHook = streams.RedeliveryTracker.start()
 
     val messages = (0 to 20).map(_.toString)
     messages.foreach(msg => sendToKafka(kmqConfig.getMsgTopic, msg))
@@ -98,10 +100,12 @@ class IntegrationTest
     control.shutdown()
   }
 
-  "KMQ" should "resend message if max redelivery count not exceeded" in {
+  it should "resend message if max redelivery count not exceeded" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
-    val kmqConfig = new KmqConfig(bootstrapServer, s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery", 1000, 1000)
+
+    implicit val kmqConfig: KmqConfig = new KmqConfig(bootstrapServer, s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery", 1000, 1000)
+    implicit val kafkaClients: KafkaClients = new KafkaClients(kmqConfig)
 
     val consumerSettings = ConsumerSettings(system, new StringDeserializer, new StringDeserializer)
       .withBootstrapServers(bootstrapServer)
@@ -151,7 +155,7 @@ class IntegrationTest
     val undeliveredControl = Consumer
       .plainSource(
         consumerSettings,
-        Subscriptions.topics(s"${kmqConfig.getMsgTopic}__undelivered")
+        Subscriptions.topics(kmqConfig.getDeadLetterTopic)
       ) // 1. get messages from dead-letter topic
       .map { msg =>
         undeliveredMessages += msg.value
@@ -160,7 +164,7 @@ class IntegrationTest
       .to(Sink.ignore)
       .run()
 
-    val redeliveryHook = RedeliveryTracker.start(new KafkaClients(kmqConfig), kmqConfig)
+    val redeliveryHook = streams.RedeliveryTracker.start()
 
     val messages = (0 to 6).map(_.toString)
     messages.foreach(msg => sendToKafka(kmqConfig.getMsgTopic, msg))
@@ -170,7 +174,7 @@ class IntegrationTest
     eventually {
       receivedMessages.sortBy(_.toInt) shouldBe expectedReceived
       undeliveredMessages.sortBy(_.toInt) shouldBe expectedUndelivered
-    }(PatienceConfig(timeout = Span(15, Seconds)), implicitly, implicitly)
+    }(PatienceConfig(timeout = Span(30, Seconds)), implicitly, implicitly)
 
     redeliveryHook.close()
     control.shutdown()

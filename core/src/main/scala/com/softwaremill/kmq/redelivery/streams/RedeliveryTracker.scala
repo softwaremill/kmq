@@ -30,6 +30,11 @@ object RedeliveryTracker extends StrictLogging {
 
     logger.info("Started redelivery stream")
 
-    () => Await.result(streamControl.drainAndShutdown().andThen { case _ => system.terminate() }, 1.minute)
+    () => {
+      // TODO: chain futures
+      Await.result(streamControl.stop(), 1.minute)
+      Await.result(streamControl.drainAndShutdown(), 1.minute)
+      Await.result(system.terminate(), 1.minute)
+    }
   }
 }
