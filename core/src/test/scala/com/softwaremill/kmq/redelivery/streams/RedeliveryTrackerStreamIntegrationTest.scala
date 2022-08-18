@@ -48,7 +48,8 @@ class RedeliveryTrackerStreamIntegrationTest extends TestKit(ActorSystem("test-s
       .withGroupId(kmqConfig.getRedeliveryConsumerGroupId)
       .withProperties(kmqConfig.getConsumerProps)
 
-    val streamControl = new RedeliveryTrackerStream(markerConsumerSettings, kmqConfig.getMarkerTopic)
+    val streamControl = new RedeliveryTrackerStream(markerConsumerSettings,
+      kmqConfig.getMarkerTopic, Int.MaxValue)
       .run()
 
     createTopic(kmqConfig.getMsgTopic)
@@ -82,7 +83,8 @@ class RedeliveryTrackerStreamIntegrationTest extends TestKit(ActorSystem("test-s
       .withGroupId(kmqConfig.getRedeliveryConsumerGroupId)
       .withProperties(kmqConfig.getConsumerProps)
 
-    val streamControl = new RedeliveryTrackerStream(markerConsumerSettings, kmqConfig.getMarkerTopic)
+    val streamControl = new RedeliveryTrackerStream(markerConsumerSettings,
+      kmqConfig.getMarkerTopic, Int.MaxValue)
       .run()
 
     createTopic(kmqConfig.getMarkerTopic)

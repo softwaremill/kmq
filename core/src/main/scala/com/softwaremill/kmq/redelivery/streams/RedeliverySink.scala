@@ -1,6 +1,6 @@
 package com.softwaremill.kmq.redelivery.streams
 
-import akka.NotUsed
+import akka.Done
 import akka.actor.ActorSystem
 import akka.kafka.ConsumerMessage.CommittableMessage
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
@@ -11,13 +11,14 @@ import org.apache.kafka.common.serialization.ByteArraySerializer
 
 import java.time.{Clock, Instant}
 import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 object RedeliverySink extends StrictLogging {
 
   def apply(partition: Partition)
            (implicit system: ActorSystem, kafkaClients: KafkaClients, kmqConfig: KmqConfig, clock: Clock
-           ): Sink[CommittableMessage[MarkerKey, MarkerValue], NotUsed] = {
+           ): Sink[CommittableMessage[MarkerKey, MarkerValue], Future[Done]] = {
     val producer = kafkaClients.createProducer(classOf[ByteArraySerializer], classOf[ByteArraySerializer])
     val redeliverer = new RetryingRedeliverer(new DefaultRedeliverer(partition, producer, kmqConfig, kafkaClients))
 
@@ -76,7 +77,7 @@ object RedeliverySink extends StrictLogging {
       .toMat(Sink.foreach { msg => // redeliver
           redeliverer.redeliver(List(msg.record.key)) // TODO: maybe bulk redeliver
 
-      })(Keep.left)
+      })(Keep.right)
   }
 
   private def bySmallestTimestampAscending(implicit ord: Ordering[Timestamp]): Ordering[MsgWithTimestamp] =

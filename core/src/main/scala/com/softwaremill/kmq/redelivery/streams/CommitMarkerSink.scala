@@ -1,6 +1,6 @@
 package com.softwaremill.kmq.redelivery.streams
 
-import akka.NotUsed
+import akka.Done
 import akka.actor.ActorSystem
 import akka.kafka.CommitterSettings
 import akka.kafka.ConsumerMessage.CommittableMessage
@@ -9,9 +9,11 @@ import akka.stream.scaladsl.{Flow, Keep, Sink}
 import com.softwaremill.kmq.redelivery.Offset
 import com.softwaremill.kmq.{EndMarker, MarkerKey, MarkerValue, StartMarker}
 
+import scala.concurrent.Future
+
 object CommitMarkerSink {
   
-  def apply()(implicit system: ActorSystem): Sink[CommittableMessage[MarkerKey, MarkerValue], NotUsed] = {
+  def apply()(implicit system: ActorSystem): Sink[CommittableMessage[MarkerKey, MarkerValue], Future[Done]] = {
     val committerSettings = CommitterSettings(system)
 
     Flow[CommittableMessage[MarkerKey, MarkerValue]]
@@ -43,7 +45,7 @@ object CommitMarkerSink {
           prev
       }
       .map(_.committableOffset)
-      .toMat(Committer.sink(committerSettings))(Keep.left)
+      .toMat(Committer.sink(committerSettings))(Keep.right)
   }
 
   def bySmallestOffsetAscending(implicit ord: Ordering[Offset]): Ordering[CommittableMessage[MarkerKey, MarkerValue]] =
