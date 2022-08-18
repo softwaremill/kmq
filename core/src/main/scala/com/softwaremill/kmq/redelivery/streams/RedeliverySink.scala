@@ -1,7 +1,6 @@
 package com.softwaremill.kmq.redelivery.streams
 
-import akka.Done
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Cancellable}
 import akka.kafka.ConsumerMessage.CommittableMessage
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import com.softwaremill.kmq._
@@ -11,20 +10,19 @@ import org.apache.kafka.common.serialization.ByteArraySerializer
 
 import java.time.{Clock, Instant}
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 object RedeliverySink extends StrictLogging {
 
   def apply(partition: Partition)
            (implicit system: ActorSystem, kafkaClients: KafkaClients, kmqConfig: KmqConfig, clock: Clock
-           ): Sink[CommittableMessage[MarkerKey, MarkerValue], Future[Done]] = {
+           ): Sink[CommittableMessage[MarkerKey, MarkerValue], Cancellable] = {
     val producer = kafkaClients.createProducer(classOf[ByteArraySerializer], classOf[ByteArraySerializer])
     val redeliverer = new RetryingRedeliverer(new DefaultRedeliverer(partition, producer, kmqConfig, kafkaClients))
 
     Flow[CommittableMessage[MarkerKey, MarkerValue]]
       .map(MarkerRedeliveryCommand)
-      .merge(Source.tick(initialDelay = 1.second, interval = 1.second, tick = TickRedeliveryCommand))
+      .mergeMat(Source.tick(initialDelay = 1.second, interval = 1.second, tick = TickRedeliveryCommand))(Keep.right)
       .statefulMapConcat { () => // keep track of open markers; select markers to redeliver
         val markersByTimestamp = new PriorityQueueMap[MarkerKey, MsgWithTimestamp](valueOrdering = bySmallestTimestampAscending)
         var latestMarkerSeenTimestamp: Option[Timestamp] = None
@@ -76,8 +74,7 @@ object RedeliverySink extends StrictLogging {
       }
       .toMat(Sink.foreach { msg => // redeliver
           redeliverer.redeliver(List(msg.record.key)) // TODO: maybe bulk redeliver
-
-      })(Keep.right)
+      })(Keep.left)
   }
 
   private def bySmallestTimestampAscending(implicit ord: Ordering[Timestamp]): Ordering[MsgWithTimestamp] =
