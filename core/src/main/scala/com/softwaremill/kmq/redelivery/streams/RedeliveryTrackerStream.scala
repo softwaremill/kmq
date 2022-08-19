@@ -6,14 +6,15 @@ import akka.kafka.ConsumerMessage.CommittableMessage
 import akka.kafka.scaladsl.Consumer
 import akka.kafka.scaladsl.Consumer.{Control, DrainingControl}
 import akka.kafka.{ConsumerSettings, Subscriptions}
-import akka.stream.ClosedShape
+import akka.stream._
 import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Keep, RunnableGraph, Sink}
+import akka.stream.stage.{GraphStageLogic, GraphStageWithMaterializedValue, InHandler, OutHandler}
 import com.softwaremill.kmq._
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.kafka.common.{Metric, MetricName}
 
 import java.time.Clock
-import java.util.concurrent.ConcurrentHashMap
+import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
@@ -24,29 +25,7 @@ class RedeliveryTrackerStream(markerConsumerSettings: ConsumerSettings[MarkerKey
                              (implicit system: ActorSystem, ec: ExecutionContext,
                               kafkaClients: KafkaClients, kmqConfig: KmqConfig, clock: Clock) extends StrictLogging {
 
-  val cancellables: java.util.Set[Cancellable] = ConcurrentHashMap.newKeySet()
-
-  class MyDrainingControl[T](control: Control, future: Future[T]) extends Control {
-    private val drainingControl = DrainingControl(control, future)
-
-    override def stop(): Future[Done] = {
-      cancellables.forEach(_.cancel)
-      drainingControl.stop()
-    }
-
-    def drainAndShutdown()(implicit ec: ExecutionContext): Future[T] = {
-      cancellables.forEach(_.cancel)
-      drainingControl.drainAndShutdown()
-    }
-
-    override def shutdown(): Future[Done] = throw new UnsupportedOperationException()
-
-    override def isShutdown: Future[Done] = drainingControl.isShutdown
-
-    override def metrics: Future[Map[MetricName, Metric]] = drainingControl.metrics
-  }
-
-  def run(): MyDrainingControl[Done] = {
+  def run(): DrainingControl[Done] = {
     Consumer.committablePartitionedSource(markerConsumerSettings, Subscriptions.topics(markersTopic))
       .mapAsyncUnordered(maxPartitions) {
         case (topicPartition, source) =>
@@ -65,11 +44,63 @@ class RedeliveryTrackerStream(markerConsumerSettings: ConsumerSettings[MarkerKey
             })
             .run()
 
-          cancellables.add(cancellable)
-
-          Future.successful(())
+          Future.successful(cancellable)
       }
-      .toMat(Sink.ignore)((c, f) => new MyDrainingControl(c, f))
+      .viaMat(Flow.fromGraph(new AggregatingToMatFlow()))(ControlWithCancellable.apply)
+      .toMat(Sink.ignore)(DrainingControl.apply)
       .run()
   }
+}
+
+class AggregatingToMatFlow[T] extends GraphStageWithMaterializedValue[FlowShape[T, T], Iterable[T]] {
+  val in: Inlet[T] = Inlet("in")
+  val out: Outlet[T] = Outlet("out")
+
+  override def shape: FlowShape[T, T] = FlowShape(in, out)
+
+  override def createLogicAndMaterializedValue(inheritedAttributes: Attributes): (GraphStageLogic, Iterable[T]) = {
+    val logic = new GraphStageLogic(shape) {
+      private val _values: mutable.Set[T] = mutable.Set()
+
+      def values: Iterable[T] = _values
+
+      setHandlers(in, out, new InHandler with OutHandler {
+        override def onPush(): Unit = {
+          val v = grab(in)
+          _values += v
+          push(out, v)
+        }
+
+        override def onPull(): Unit = {
+          pull(in)
+        }
+      })
+    }
+
+    logic -> logic.values
+  }
+}
+
+class ControlWithCancellable(control: Consumer.Control, cancellables: Iterable[Cancellable]) extends Control {
+
+  override def stop(): Future[Done] = {
+    cancellables.foreach(_.cancel())
+    control.stop()
+  }
+
+  override def shutdown(): Future[Done] = {
+    cancellables.foreach(_.cancel())
+    control.shutdown()
+  }
+
+  override def isShutdown: Future[Done] =
+    control.isShutdown
+
+  override def metrics: Future[Map[MetricName, Metric]] =
+    control.metrics
+}
+
+object ControlWithCancellable {
+  def apply(control: Consumer.Control, cancellables: Iterable[Cancellable]): ControlWithCancellable =
+    new ControlWithCancellable(control, cancellables)
 }
