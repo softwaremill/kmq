@@ -19,10 +19,10 @@ object EmbeddedStream extends StrictLogging {
   private val FAIL_RATIO = 0.5
   private val PARTITIONS = 1
 
-  private implicit val kafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig.defaultConfig
-  private implicit val kmqConfig: KmqConfig = new KmqConfig("localhost:" + kafkaConfig.kafkaPort, "queue", "markers", "kmq_client", "kmq_redelivery",
+  private val kafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig.defaultConfig
+  private val kmqConfig: KmqConfig = new KmqConfig("localhost:" + kafkaConfig.kafkaPort, "queue", "markers", "kmq_client", "kmq_redelivery",
     Duration.ofSeconds(3).toMillis, 1000)
-  private implicit val clients: KafkaClients = new KafkaClients(kmqConfig)
+  private val clients: KafkaClients = new KafkaClients(kmqConfig)
 
   private val random: Random = new Random(0)
   private val processedMessages = new ConcurrentHashMap[Integer, Integer]
@@ -34,7 +34,7 @@ object EmbeddedStream extends StrictLogging {
     EmbeddedKafka.createCustomTopic(kmqConfig.getMsgTopic, partitions = PARTITIONS)
     logger.info("Kafka started")
 
-    val redelivery = RedeliveryTracker.start()
+    val redelivery = RedeliveryTracker.start(clients, kmqConfig)
     sleep(1000) // Wait for the stream to warm up TODO: analyze
 
     startInBackground(() => processMessages(clients, kmqConfig))

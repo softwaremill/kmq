@@ -14,9 +14,8 @@ import scala.concurrent.duration.DurationInt
 
 object RedeliverySink extends StrictLogging {
 
-  def apply(partition: Partition)
-           (implicit system: ActorSystem, kafkaClients: KafkaClients, kmqConfig: KmqConfig, clock: Clock
-           ): Sink[CommittableMessage[MarkerKey, MarkerValue], Cancellable] = {
+  def apply(kafkaClients: KafkaClients, kmqConfig: KmqConfig)(partition: Partition)
+           (implicit system: ActorSystem, clock: Clock): Sink[CommittableMessage[MarkerKey, MarkerValue], Cancellable] = {
     val producer = kafkaClients.createProducer(classOf[ByteArraySerializer], classOf[ByteArraySerializer])
     val redeliverer = new RetryingRedeliverer(new DefaultRedeliverer(partition, producer, kmqConfig, kafkaClients))
 

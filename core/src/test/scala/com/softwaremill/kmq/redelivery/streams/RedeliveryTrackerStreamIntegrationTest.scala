@@ -39,9 +39,9 @@ class RedeliveryTrackerStreamIntegrationTest extends TestKit(ActorSystem("test-s
     val maxRedeliveryCount = 1
     val redeliverAfterMs = 300
 
-    implicit val kmqConfig: KmqConfig = new KmqConfig(bootstrapServer, s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
+    val kmqConfig: KmqConfig = new KmqConfig(bootstrapServer, s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
       1000, 1000, s"${uid}__undelivered", "kmq-redelivery-count", maxRedeliveryCount, Collections.emptyMap())
-    implicit val kafkaClients: KafkaClients = new KafkaClients(kmqConfig)
+    val kafkaClients: KafkaClients = new KafkaClients(kmqConfig)
 
     val markerConsumerSettings = ConsumerSettings(system, markerKeyDeserializer, markerValueDeserializer)
       .withBootstrapServers(bootstrapServer)
@@ -49,7 +49,7 @@ class RedeliveryTrackerStreamIntegrationTest extends TestKit(ActorSystem("test-s
       .withProperties(kmqConfig.getConsumerProps)
 
     val streamControl = new RedeliveryTrackerStream(markerConsumerSettings,
-      kmqConfig.getMarkerTopic, Int.MaxValue)
+      kafkaClients, kmqConfig, Int.MaxValue)
       .run()
 
     createTopic(kmqConfig.getMsgTopic)
@@ -74,9 +74,9 @@ class RedeliveryTrackerStreamIntegrationTest extends TestKit(ActorSystem("test-s
     val uid = UUID.randomUUID().toString
     val redeliverAfterMs = 300
 
-    implicit val kmqConfig: KmqConfig = new KmqConfig(bootstrapServer, s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
+    val kmqConfig: KmqConfig = new KmqConfig(bootstrapServer, s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery",
       1000, 1000)
-    implicit val kafkaClients: KafkaClients = new KafkaClients(kmqConfig)
+    val kafkaClients: KafkaClients = new KafkaClients(kmqConfig)
 
     val markerConsumerSettings = ConsumerSettings(system, markerKeyDeserializer, markerValueDeserializer)
       .withBootstrapServers(bootstrapServer)
@@ -84,7 +84,7 @@ class RedeliveryTrackerStreamIntegrationTest extends TestKit(ActorSystem("test-s
       .withProperties(kmqConfig.getConsumerProps)
 
     val streamControl = new RedeliveryTrackerStream(markerConsumerSettings,
-      kmqConfig.getMarkerTopic, Int.MaxValue)
+      kafkaClients, kmqConfig, Int.MaxValue)
       .run()
 
     createTopic(kmqConfig.getMarkerTopic)

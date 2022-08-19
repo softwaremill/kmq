@@ -13,7 +13,7 @@ import scala.concurrent.{Await, ExecutionContext}
 
 object RedeliveryTracker extends StrictLogging {
 
-  def start()(implicit kafkaClients: KafkaClients, config: KmqConfig): Closeable = {
+  def start(kafkaClients: KafkaClients, kmqConfig: KmqConfig): Closeable = {
     implicit val system: ActorSystem = ActorSystem("kmq-redelivery")
     implicit val ec: ExecutionContext = system.dispatcher
     implicit val clock: Clock = Clock.systemDefaultZone()
@@ -21,12 +21,12 @@ object RedeliveryTracker extends StrictLogging {
     implicit val markerValueDeserializer: Deserializer[MarkerValue] = new MarkerValue.MarkerValueDeserializer()
 
     val markerConsumerSettings = ConsumerSettings(system, markerKeyDeserializer, markerValueDeserializer)
-      .withBootstrapServers(config.getBootstrapServers)
-      .withGroupId(config.getRedeliveryConsumerGroupId)
-      .withProperties(config.getConsumerProps)
+      .withBootstrapServers(kmqConfig.getBootstrapServers)
+      .withGroupId(kmqConfig.getRedeliveryConsumerGroupId)
+      .withProperties(kmqConfig.getConsumerProps)
 
     val streamControl = new RedeliveryTrackerStream(markerConsumerSettings,
-      config.getMarkerTopic, Int.MaxValue)
+      kafkaClients, kmqConfig, Int.MaxValue)
       .run()
 
     logger.info("Started redelivery stream")

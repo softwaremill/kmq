@@ -35,8 +35,8 @@ class IntegrationTest
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
 
-    implicit val kmqConfig: KmqConfig = new KmqConfig(bootstrapServer, s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery", 1000, 1000)
-    implicit val kafkaClients: KafkaClients = new KafkaClients(kmqConfig)
+    val kmqConfig: KmqConfig = new KmqConfig(bootstrapServer, s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery", 1000, 1000)
+    val kafkaClients: KafkaClients = new KafkaClients(kmqConfig)
 
     val consumerSettings = ConsumerSettings(system, new StringDeserializer, new StringDeserializer)
       .withBootstrapServers(bootstrapServer)
@@ -86,7 +86,7 @@ class IntegrationTest
       .to(Producer.plainSink(markerProducerSettings)) // 5. write "end" markers
       .run()
 
-    val redeliveryHook = streams.RedeliveryTracker.start()
+    val redeliveryHook = streams.RedeliveryTracker.start(kafkaClients, kmqConfig)
 
     val messages = (0 to 20).map(_.toString)
     messages.foreach(msg => sendToKafka(kmqConfig.getMsgTopic, msg))
@@ -104,8 +104,8 @@ class IntegrationTest
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
 
-    implicit val kmqConfig: KmqConfig = new KmqConfig(bootstrapServer, s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery", 1000, 1000)
-    implicit val kafkaClients: KafkaClients = new KafkaClients(kmqConfig)
+    val kmqConfig: KmqConfig = new KmqConfig(bootstrapServer, s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery", 1000, 1000)
+    val kafkaClients: KafkaClients = new KafkaClients(kmqConfig)
 
     val consumerSettings = ConsumerSettings(system, new StringDeserializer, new StringDeserializer)
       .withBootstrapServers(bootstrapServer)
@@ -164,7 +164,7 @@ class IntegrationTest
       .to(Sink.ignore)
       .run()
 
-    val redeliveryHook = streams.RedeliveryTracker.start()
+    val redeliveryHook = streams.RedeliveryTracker.start(kafkaClients, kmqConfig)
 
     val messages = (0 to 6).map(_.toString)
     messages.foreach(msg => sendToKafka(kmqConfig.getMsgTopic, msg))
