@@ -7,7 +7,7 @@ val scala2_12 = "2.12.16"
 val scala2_13 = "2.13.8"
 
 val kafkaVersion = "3.2.1"
-val logbackVersion = "1.2.11"
+val logbackVersion = "1.4.0"
 val akkaVersion = "2.6.19"
 val akkaStreamKafkaVersion = "2.1.1"
 val scalaLoggingVersion = "3.9.5"
