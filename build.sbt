@@ -11,7 +11,7 @@ val logbackVersion = "1.2.11"
 val akkaVersion = "2.6.19"
 val akkaStreamKafkaVersion = "2.1.1"
 val scalaLoggingVersion = "3.9.5"
-val scalaTestVersion = "3.2.13"
+val scalaTestVersion = "3.2.14"
 
 // slow down Tests for CI
 parallelExecution in Global := false
