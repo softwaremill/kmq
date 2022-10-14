@@ -4,7 +4,7 @@ import sbt.Keys._
 import sbt._
 
 val scala2_12 = "2.12.16"
-val scala2_13 = "2.13.8"
+val scala2_13 = "2.13.10"
 
 val kafkaVersion = "3.2.1"
 val logbackVersion = "1.2.11"
