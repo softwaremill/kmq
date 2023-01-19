@@ -6,8 +6,8 @@ import com.softwaremill.kmq.KmqConfig;
 import java.time.Duration;
 
 class StandaloneConfig {
-    static final KmqConfig KMQ_CONFIG = new KmqConfig("queue", "markers", "kmq_client", "kmq_redelivery",
-            Duration.ofSeconds(90).toMillis(), 1000);
+    static final KmqConfig KMQ_CONFIG = new KmqConfig("queue", "markers", "kmq_client", "kmq_marker",
+            "kmq_marker_offset", Duration.ofSeconds(90).toMillis(), 1000);
 
     /* EXAMPLE with extraConfig : SSL Encryption & SSL Authentication
 

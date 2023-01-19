@@ -121,5 +121,6 @@ object StandaloneTracker extends App with StrictLogging {
 object StandaloneConfig {
   val bootstrapServer = "localhost:9092"
   val kmqConfig =
-    new KmqConfig("queue", "markers", "kmq_client", "kmq_redelivery", Duration.ofSeconds(10).toMillis, 1000)
+    new KmqConfig("queue", "markers", "kmq_client", "kmq_marker",
+      "kmq_marker_offset", Duration.ofSeconds(10).toMillis, 1000)
 }

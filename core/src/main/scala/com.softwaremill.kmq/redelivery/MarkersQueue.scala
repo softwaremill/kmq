@@ -10,7 +10,7 @@ class MarkersQueue(disableRedeliveryBefore: Offset) {
   private val markersByOffset = new mutable.PriorityQueue[AttributedMarkerKey[Offset]]()(bySmallestAttributeOrdering)
   private var redeliveryEnabled = false
 
-  def handleMarker(markerOffset: Offset, k: MarkerKey, v: MarkerValue, t: Timestamp) {
+  def handleMarker(markerOffset: Offset, k: MarkerKey, v: MarkerValue, t: Timestamp): Unit = {
     if (markerOffset >= disableRedeliveryBefore) {
       redeliveryEnabled = true
     }
