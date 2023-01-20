@@ -10,6 +10,8 @@ val kafkaVersion = "3.3.1"
 val logbackVersion = "1.4.5"
 val akkaVersion = "2.6.19"
 val akkaStreamKafkaVersion = "2.1.1"
+val fs2Version = "3.5.0"
+val kafkaFs2Version = "3.0.0-M8"
 val scalaLoggingVersion = "3.9.5"
 val scalaTestVersion = "3.2.15"
 
@@ -45,6 +47,8 @@ lazy val core = (projectMatrix in file("core"))
   .settings(
     libraryDependencies ++= List(
       "org.apache.kafka" % "kafka-clients" % kafkaVersion exclude ("org.scala-lang.modules", "scala-java8-compat"),
+      "co.fs2" %% "fs2-core" % fs2Version,
+      "com.github.fd4s" %% "fs2-kafka" % kafkaFs2Version,
       "com.typesafe.akka" %% "akka-actor" % akkaVersion,
       "com.typesafe.akka" %% "akka-stream" % akkaVersion,
       "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
@@ -76,9 +80,11 @@ lazy val exampleScala = (projectMatrix in file("example-scala"))
   .settings(
     publishArtifact := false,
     libraryDependencies ++= List(
+      "co.fs2" %% "fs2-core" % fs2Version,
+      "com.github.fd4s" %% "fs2-kafka" % kafkaFs2Version,
       "com.typesafe.akka" %% "akka-stream-kafka" % akkaStreamKafkaVersion,
       "ch.qos.logback" % "logback-classic" % logbackVersion % Runtime
     )
   )
-  .jvmPlatform(scalaVersions = Seq(scala2_12))
+  .jvmPlatform(scalaVersions = Seq(scala2_13))
   .dependsOn(core)

@@ -1,24 +1,23 @@
 package com.softwaremill.kmq.example
 
-import cats.effect.{IO, IOApp}
-
 import java.time.Duration
-import scala.io.StdIn
+import java.util.Random
+
+import akka.actor.ActorSystem
+import akka.kafka.scaladsl.{Consumer, Producer}
+import akka.kafka.{ConsumerSettings, ProducerMessage, ProducerSettings, Subscriptions}
+import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.Source
 import com.softwaremill.kmq._
 import com.typesafe.scalalogging.StrictLogging
-import fs2.Stream
-import fs2.kafka.{KafkaProducer, ProducerRecord, ProducerRecords, ProducerSettings}
+import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.clients.producer.{ProducerConfig, ProducerRecord}
+import org.apache.kafka.common.serialization.{StringDeserializer, StringSerializer}
 
-//import org.apache.kafka.clients.consumer.ConsumerConfig
-//import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig, ProducerRecord}
-//import org.apache.kafka.common.serialization.{StringDeserializer, StringSerializer}
-
-//import scala.concurrent.Await
+import scala.concurrent.Await
 import scala.concurrent.duration._
-//import scala.io.StdIn
-//import scala.util.chaining.scalaUtilChainingOps
+import scala.io.StdIn
 
-/*
 object StandaloneReactiveClient extends App with StrictLogging {
   import StandaloneConfig._
 
@@ -80,48 +79,30 @@ object StandaloneReactiveClient extends App with StrictLogging {
 
   Await.result(system.terminate(), 1.minute)
 }
-*/
 
-object StandaloneSender extends IOApp.Simple with StrictLogging {
+object StandaloneSenderLegacy extends App with StrictLogging {
   import StandaloneConfig._
 
-  def run: IO[Unit] = {
+  implicit val system: ActorSystem = ActorSystem()
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
+  val producerSettings = ProducerSettings(system, new StringSerializer(), new StringSerializer())
+    .withBootstrapServers(bootstrapServer)
 
-    val randPrefix = util.Random.nextInt(9999)
-
-    val ticks = Stream
-      .emits[IO, Int](Range(0, 100))
-      .map(_ + randPrefix * 10000)
-      .meteredStartImmediately(100.millis)
-
-    val producerSettings = ProducerSettings[IO, String, String]
-      .withBootstrapServers(bootstrapServer)
-
-    val kafkaStream = ticks
-      .map { msg =>
-        // TODO: Logging current msg
-        val record = ProducerRecord(kmqConfig.getMsgTopic, msg.toString, msg.toString)
-        ProducerRecords.one(record)
-      }.through(KafkaProducer.pipe(producerSettings))
-
-    kafkaStream.compile.drain
-  }
-}
-
-object StandaloneTracker extends App with StrictLogging {
-  import StandaloneConfig._
-
-  val doClose = RedeliveryTracker.start(new KafkaClients(bootstrapServer), kmqConfig)
+  Source
+    .tick(0.seconds, 100.millis, ())
+    .zip(Source.unfold(0)(x => Some((x + 1, x + 1))))
+    .map(_._2)
+    .map(msg => s"message number $msg")
+    .take(100)
+    .map { msg =>
+      logger.info(s"Sending: '$msg'"); msg
+    }
+    .map(msg => new ProducerRecord(kmqConfig.getMsgTopic, msg, msg))
+    .to(Producer.plainSink(producerSettings))
+    .run()
 
   logger.info("Press any key to exit ...")
   StdIn.readLine()
 
-  doClose.close()
-}
-
-object StandaloneConfig {
-  val bootstrapServer = "localhost:9092"
-  val kmqConfig =
-    new KmqConfig("queue", "markers", "kmq_client", "kmq_marker",
-      "kmq_marker_offset", Duration.ofSeconds(10).toMillis, 1000)
+  Await.result(system.terminate(), 1.minute)
 }
