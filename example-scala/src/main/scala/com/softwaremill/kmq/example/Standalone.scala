@@ -1,6 +1,6 @@
 package com.softwaremill.kmq.example
 
-import cats.effect.{IO, IOApp}
+import cats.effect.{IO, IOApp, Sync}
 
 import java.time.Duration
 import scala.io.StdIn
@@ -8,6 +8,8 @@ import com.softwaremill.kmq._
 import com.typesafe.scalalogging.StrictLogging
 import fs2.Stream
 import fs2.kafka.{KafkaProducer, ProducerRecord, ProducerRecords, ProducerSettings}
+import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 //import org.apache.kafka.clients.consumer.ConsumerConfig
 //import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig, ProducerRecord}
@@ -85,6 +87,8 @@ object StandaloneReactiveClient extends App with StrictLogging {
 object StandaloneSender extends IOApp.Simple with StrictLogging {
   import StandaloneConfig._
 
+  implicit def logger[F[_] : Sync]: Logger[F] = Slf4jLogger.getLogger[F]
+
   def run: IO[Unit] = {
 
     val randPrefix = util.Random.nextInt(9999)
@@ -99,8 +103,10 @@ object StandaloneSender extends IOApp.Simple with StrictLogging {
 
     val kafkaStream = ticks
       .map { msg =>
-        // TODO: Logging current msg
-        val record = ProducerRecord(kmqConfig.getMsgTopic, msg.toString, msg.toString)
+        ProducerRecord(kmqConfig.getMsgTopic, msg.toString, msg.toString)
+      }.evalTap { msg =>
+        Logger[IO].info(s"record: $msg")
+      }.map { record =>
         ProducerRecords.one(record)
       }.through(KafkaProducer.pipe(producerSettings))
 
