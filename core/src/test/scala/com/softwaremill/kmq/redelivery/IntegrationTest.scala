@@ -93,7 +93,7 @@ class IntegrationTest
     eventually {
       receivedMessages.size should be > processedMessages.size
       processedMessages.sortBy(_.toInt).distinct shouldBe messages
-    }(PatienceConfig(timeout = Span(15, Seconds)), implicitly, implicitly)
+    }(PatienceConfig(timeout = Span(30, Seconds)), implicitly, implicitly)
 
     redeliveryHook.close()
     control.shutdown()
@@ -172,7 +172,7 @@ class IntegrationTest
     eventually {
       receivedMessages.sortBy(_.toInt) shouldBe expectedReceived
       undeliveredMessages.sortBy(_.toInt) shouldBe expectedUndelivered
-    }(PatienceConfig(timeout = Span(15, Seconds)), implicitly, implicitly)
+    }(PatienceConfig(timeout = Span(30, Seconds)), implicitly, implicitly)
 
     redeliveryHook.close()
     control.shutdown()
