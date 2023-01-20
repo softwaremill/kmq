@@ -3,15 +3,15 @@ import com.softwaremill.SbtSoftwareMillCommon.commonSmlBuildSettings
 import sbt.Keys._
 import sbt._
 
-val scala2_12 = "2.12.16"
-val scala2_13 = "2.13.8"
+val scala2_12 = "2.12.17"
+val scala2_13 = "2.13.10"
 
-val kafkaVersion = "3.2.1"
-val logbackVersion = "1.2.11"
+val kafkaVersion = "3.3.1"
+val logbackVersion = "1.4.5"
 val akkaVersion = "2.6.19"
 val akkaStreamKafkaVersion = "2.1.1"
 val scalaLoggingVersion = "3.9.5"
-val scalaTestVersion = "3.2.13"
+val scalaTestVersion = "3.2.15"
 
 // slow down Tests for CI
 parallelExecution in Global := false

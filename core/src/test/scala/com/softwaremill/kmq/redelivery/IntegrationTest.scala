@@ -34,7 +34,8 @@ class IntegrationTest
   "KMQ" should "resend message if not committed" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
-    val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery", 1000, 1000)
+    val kmqConfig =
+      new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_marker", "kmq_marker_offset", 1000, 1000)
 
     val consumerSettings = ConsumerSettings(system, new StringDeserializer, new StringDeserializer)
       .withBootstrapServers(bootstrapServer)
@@ -101,7 +102,8 @@ class IntegrationTest
   "KMQ" should "resend message if max redelivery count not exceeded" in {
     val bootstrapServer = s"localhost:${testKafkaConfig.kafkaPort}"
     val uid = UUID.randomUUID().toString
-    val kmqConfig = new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_redelivery", 1000, 1000)
+    val kmqConfig =
+      new KmqConfig(s"$uid-queue", s"$uid-markers", "kmq_client", "kmq_marker", "kmq_marker_offset", 1000, 1000)
 
     val consumerSettings = ConsumerSettings(system, new StringDeserializer, new StringDeserializer)
       .withBootstrapServers(bootstrapServer)

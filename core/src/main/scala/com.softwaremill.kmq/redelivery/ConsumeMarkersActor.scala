@@ -27,7 +27,7 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
   private var commitMarkerOffsetsActor: ActorRef = _
 
   override def preStart(): Unit = {
-    markerConsumer = clients.createConsumer(config.getRedeliveryConsumerGroupId,
+    markerConsumer = clients.createConsumer(config.getMarkerConsumerGroupId,
         classOf[MarkerKey.MarkerKeyDeserializer],
         classOf[MarkerValue.MarkerValueDeserializer])
     producer = clients.createProducer(classOf[ByteArraySerializer], classOf[ByteArraySerializer])
@@ -40,12 +40,12 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
 
   private def setupMarkerConsumer(): Unit = {
     markerConsumer.subscribe(Collections.singleton(config.getMarkerTopic), new ConsumerRebalanceListener() {
-      def onPartitionsRevoked(partitions: java.util.Collection[TopicPartition]) {
+      def onPartitionsRevoked(partitions: java.util.Collection[TopicPartition]): Unit = {
         logger.info(s"Revoked marker partitions: ${partitions.asScala.toList.map(_.partition())}")
         partitions.asScala.foreach(tp => partitionRevoked(tp.partition()))
       }
 
-      def onPartitionsAssigned(partitions: java.util.Collection[TopicPartition]) {
+      def onPartitionsAssigned(partitions: java.util.Collection[TopicPartition]): Unit = {
         logger.info(s"Assigned marker partitions: ${partitions.asScala.toList.map(_.partition())}")
         val endOffsets = markerConsumer.endOffsets(partitions)
         partitions.asScala.foreach(tp => partitionAssigned(tp.partition(), endOffsets.get(tp) - 1))
@@ -75,7 +75,7 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
 
   private def setupOffsetCommitting(): Unit = {
     commitMarkerOffsetsActor = context.actorOf(
-      Props(new CommitMarkerOffsetsActor(config.getMarkerTopic, clients)),
+      Props(new CommitMarkerOffsetsActor(config.getMarkerTopic, config.getMarkerConsumerOffsetGroupId, clients)),
       "commit-marker-offsets")
 
     commitMarkerOffsetsActor ! DoCommit
