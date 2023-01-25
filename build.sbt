@@ -15,6 +15,7 @@ val log4catsVersion = "2.5.0"
 val kafkaFs2Version = "3.0.0-M8"
 val scalaLoggingVersion = "3.9.5"
 val scalaTestVersion = "3.2.15"
+val catsEffectTestingVersion = "1.5.0"
 
 // slow down Tests for CI
 parallelExecution in Global := false
@@ -55,6 +56,7 @@ lazy val core = (projectMatrix in file("core"))
       "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
       "org.scalatest" %% "scalatest" % scalaTestVersion % Test,
       "org.scalatest" %% "scalatest-flatspec" % scalaTestVersion % Test,
+      "org.typelevel" %% "cats-effect-testing-scalatest" % catsEffectTestingVersion % Test,
       "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
       "com.typesafe.akka" %% "akka-stream-kafka" % akkaStreamKafkaVersion % Test,
       "io.github.embeddedkafka" %% "embedded-kafka" % kafkaVersion % Test exclude ("javax.jms", "jms"),

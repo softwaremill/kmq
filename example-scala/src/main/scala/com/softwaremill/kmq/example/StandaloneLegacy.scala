@@ -1,8 +1,6 @@
 package com.softwaremill.kmq.example
 
-import java.time.Duration
 import java.util.Random
-
 import akka.actor.ActorSystem
 import akka.kafka.scaladsl.{Consumer, Producer}
 import akka.kafka.{ConsumerSettings, ProducerMessage, ProducerSettings, Subscriptions}
@@ -14,10 +12,12 @@ import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.{ProducerConfig, ProducerRecord}
 import org.apache.kafka.common.serialization.{StringDeserializer, StringSerializer}
 
+import scala.annotation.nowarn
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.io.StdIn
 
+@nowarn
 object StandaloneReactiveClient extends App with StrictLogging {
   import StandaloneConfig._
 
@@ -80,6 +80,7 @@ object StandaloneReactiveClient extends App with StrictLogging {
   Await.result(system.terminate(), 1.minute)
 }
 
+@nowarn
 object StandaloneSenderLegacy extends App with StrictLogging {
   import StandaloneConfig._
 
