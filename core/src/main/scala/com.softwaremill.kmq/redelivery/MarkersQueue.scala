@@ -26,6 +26,7 @@ class MarkersQueue(disableRedeliveryBefore: Offset) {
 
       case x => throw new IllegalArgumentException(s"Unknown marker type: ${x.getClass}")
     }
+    println(s"qTST: ${markersByTimestamp.size} qOff: ${markersByOffset.size}")
   }
 
   def markersToRedeliver(now: Timestamp): List[MarkerKey] = {
@@ -36,6 +37,7 @@ class MarkersQueue(disableRedeliveryBefore: Offset) {
     if (redeliveryEnabled) {
       while (shouldRedeliverMarkersQueueHead(now)) {
         val queueHead = markersByTimestamp.dequeue()
+        println(s"markersToRedeliver: trying: $queueHead")
         // the first marker, if any, is not ended for sure (b/c of the cleanup that's done at the beginning),
         // but subsequent markers don't have to be.
         if (markersInProgress.contains(queueHead.key)) {
@@ -46,6 +48,7 @@ class MarkersQueue(disableRedeliveryBefore: Offset) {
         // sends an end marker when this is done) - the marker needs to stay for minimum-offset calculations to be
         // correct
       }
+      println(s"markersToRedeliver: $toRedeliver")
     }
 
     toRedeliver
