@@ -6,7 +6,8 @@ import scala.collection.mutable
 
 class MarkersQueue(disableRedeliveryBefore: Offset) {
   private val markersInProgress = mutable.Set[MarkerKey]()
-  private val markersByTimestamp = new mutable.PriorityQueue[AttributedMarkerKey[Timestamp]]()(bySmallestAttributeOrdering)
+  private val markersByTimestamp =
+    new mutable.PriorityQueue[AttributedMarkerKey[Timestamp]]()(bySmallestAttributeOrdering)
   private val markersByOffset = new mutable.PriorityQueue[AttributedMarkerKey[Offset]]()(bySmallestAttributeOrdering)
   private var redeliveryEnabled = false
 
@@ -18,7 +19,7 @@ class MarkersQueue(disableRedeliveryBefore: Offset) {
     v match {
       case s: StartMarker =>
         markersByOffset.enqueue(AttributedMarkerKey(k, markerOffset))
-        markersByTimestamp.enqueue(AttributedMarkerKey(k, t+s.getRedeliverAfter))
+        markersByTimestamp.enqueue(AttributedMarkerKey(k, t + s.getRedeliverAfter))
         markersInProgress += k
 
       case _: EndMarker =>
@@ -68,16 +69,17 @@ class MarkersQueue(disableRedeliveryBefore: Offset) {
 
   private def shouldRedeliverMarkersQueueHead(now: Timestamp): Boolean = {
     markersByTimestamp.headOption match {
-      case None => false
+      case None    => false
       case Some(m) => now >= m.attr
     }
   }
 
   private case class AttributedMarkerKey[T](key: MarkerKey, attr: T)
 
-  private def bySmallestAttributeOrdering[T: Ordering]: Ordering[AttributedMarkerKey[T]] = new Ordering[AttributedMarkerKey[T]] {
-    override def compare(x: AttributedMarkerKey[T], y: AttributedMarkerKey[T]): Int = {
-      - implicitly[Ordering[T]].compare(x.attr, y.attr)
+  private def bySmallestAttributeOrdering[T: Ordering]: Ordering[AttributedMarkerKey[T]] =
+    new Ordering[AttributedMarkerKey[T]] {
+      override def compare(x: AttributedMarkerKey[T], y: AttributedMarkerKey[T]): Int = {
+        -implicitly[Ordering[T]].compare(x.attr, y.attr)
+      }
     }
-  }
 }

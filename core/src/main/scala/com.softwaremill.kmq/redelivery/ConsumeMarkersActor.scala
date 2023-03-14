@@ -27,9 +27,11 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
   private var commitMarkerOffsetsActor: ActorRef = _
 
   override def preStart(): Unit = {
-    markerConsumer = clients.createConsumer(config.getMarkerConsumerGroupId,
-        classOf[MarkerKey.MarkerKeyDeserializer],
-        classOf[MarkerValue.MarkerValueDeserializer])
+    markerConsumer = clients.createConsumer(
+      config.getMarkerConsumerGroupId,
+      classOf[MarkerKey.MarkerKeyDeserializer],
+      classOf[MarkerValue.MarkerValueDeserializer]
+    )
     producer = clients.createProducer(classOf[ByteArraySerializer], classOf[ByteArraySerializer])
 
     setupMarkerConsumer()
@@ -39,18 +41,21 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
   }
 
   private def setupMarkerConsumer(): Unit = {
-    markerConsumer.subscribe(Collections.singleton(config.getMarkerTopic), new ConsumerRebalanceListener() {
-      def onPartitionsRevoked(partitions: java.util.Collection[TopicPartition]): Unit = {
-        logger.info(s"Revoked marker partitions: ${partitions.asScala.toList.map(_.partition())}")
-        partitions.asScala.foreach(tp => partitionRevoked(tp.partition()))
-      }
+    markerConsumer.subscribe(
+      Collections.singleton(config.getMarkerTopic),
+      new ConsumerRebalanceListener() {
+        def onPartitionsRevoked(partitions: java.util.Collection[TopicPartition]): Unit = {
+          logger.info(s"Revoked marker partitions: ${partitions.asScala.toList.map(_.partition())}")
+          partitions.asScala.foreach(tp => partitionRevoked(tp.partition()))
+        }
 
-      def onPartitionsAssigned(partitions: java.util.Collection[TopicPartition]): Unit = {
-        logger.info(s"Assigned marker partitions: ${partitions.asScala.toList.map(_.partition())}")
-        val endOffsets = markerConsumer.endOffsets(partitions)
-        partitions.asScala.foreach(tp => partitionAssigned(tp.partition(), endOffsets.get(tp) - 1))
+        def onPartitionsAssigned(partitions: java.util.Collection[TopicPartition]): Unit = {
+          logger.info(s"Assigned marker partitions: ${partitions.asScala.toList.map(_.partition())}")
+          val endOffsets = markerConsumer.endOffsets(partitions)
+          partitions.asScala.foreach(tp => partitionAssigned(tp.partition(), endOffsets.get(tp) - 1))
+        }
       }
-    })
+    )
   }
 
   private def partitionRevoked(p: Partition): Unit = {
@@ -61,12 +66,10 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
   }
 
   private def partitionAssigned(p: Partition, endOffset: Offset): Unit = {
-    val redeliverActorProps =  Props(
-      new RedeliverActor(p, new RetryingRedeliverer(new DefaultRedeliverer(p, producer, config, clients))))
-      .withDispatcher("kmq.redeliver-dispatcher")
-    val redeliverActor = context.actorOf(
-      redeliverActorProps,
-      s"redeliver-actor-$p-$redeliverActorNameCounter")
+    val redeliverActorProps =
+      Props(new RedeliverActor(p, new RetryingRedeliverer(new DefaultRedeliverer(p, producer, config, clients))))
+        .withDispatcher("kmq.redeliver-dispatcher")
+    val redeliverActor = context.actorOf(redeliverActorProps, s"redeliver-actor-$p-$redeliverActorNameCounter")
     redeliverActor ! DoRedeliver
 
     assignedPartitions += p -> AssignedPartition(new MarkersQueue(endOffset - 1), redeliverActor, None, None)
@@ -76,7 +79,8 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
   private def setupOffsetCommitting(): Unit = {
     commitMarkerOffsetsActor = context.actorOf(
       Props(new CommitMarkerOffsetsActor(config.getMarkerTopic, config.getMarkerConsumerOffsetGroupId, clients)),
-      "commit-marker-offsets")
+      "commit-marker-offsets"
+    )
 
     commitMarkerOffsetsActor ! DoCommit
   }
@@ -95,32 +99,36 @@ class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Acto
     logger.info("Stopped consume markers actor")
   }
 
-  override def receive: Receive = {
-    case DoConsume =>
-      try {
-        val markers = markerConsumer.poll(OneSecond).asScala
-        val now = System.currentTimeMillis()
+  override def receive: Receive = { case DoConsume =>
+    try {
+      val markers = markerConsumer.poll(OneSecond).asScala
+      val now = System.currentTimeMillis()
 
-        markers.groupBy(_.partition()).foreach { case (partition, records) =>
-          assignedPartitions.get(partition) match {
-            case None =>
-              throw new IllegalStateException(s"Got marker for partition $partition: ${records.map(_.key())}, but partition is not assigned!")
+      markers.groupBy(_.partition()).foreach { case (partition, records) =>
+        assignedPartitions.get(partition) match {
+          case None =>
+            throw new IllegalStateException(
+              s"Got marker for partition $partition: ${records.map(_.key())}, but partition is not assigned!"
+            )
 
-            case Some(ap) =>
-              ap.handleRecords(records, now)
-              ap.markersQueue.smallestMarkerOffset().foreach { offset =>
-                commitMarkerOffsetsActor ! CommitOffset(partition, offset)
-              }
-          }
+          case Some(ap) =>
+            ap.handleRecords(records, now)
+            ap.markersQueue.smallestMarkerOffset().foreach { offset =>
+              commitMarkerOffsetsActor ! CommitOffset(partition, offset)
+            }
         }
+      }
 
-        assignedPartitions.values.foreach(_.sendRedeliverMarkers(now))
-      } finally self ! DoConsume
+      assignedPartitions.values.foreach(_.sendRedeliverMarkers(now))
+    } finally self ! DoConsume
   }
 
   private case class AssignedPartition(
-    markersQueue: MarkersQueue, redeliverActor: ActorRef,
-    var latestSeenMarkerTimestamp: Option[Timestamp], var latestMarkerSeenAt: Option[Timestamp]) {
+      markersQueue: MarkersQueue,
+      redeliverActor: ActorRef,
+      var latestSeenMarkerTimestamp: Option[Timestamp],
+      var latestMarkerSeenAt: Option[Timestamp]
+  ) {
 
     def updateLatestSeenMarkerTimestamp(markerTimestamp: Timestamp, now: Timestamp): Unit = {
       latestSeenMarkerTimestamp = Some(markerTimestamp)
