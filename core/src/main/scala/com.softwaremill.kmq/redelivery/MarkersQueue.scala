@@ -76,10 +76,6 @@ class MarkersQueue(disableRedeliveryBefore: Offset) {
 
   private case class AttributedMarkerKey[T](key: MarkerKey, attr: T)
 
-  private def bySmallestAttributeOrdering[T: Ordering]: Ordering[AttributedMarkerKey[T]] =
-    new Ordering[AttributedMarkerKey[T]] {
-      override def compare(x: AttributedMarkerKey[T], y: AttributedMarkerKey[T]): Int = {
-        -implicitly[Ordering[T]].compare(x.attr, y.attr)
-      }
-    }
+  private def bySmallestAttributeOrdering[T](implicit O: Ordering[T]): Ordering[AttributedMarkerKey[T]] =
+    (x, y) => -O.compare(x.attr, y.attr)
 }
