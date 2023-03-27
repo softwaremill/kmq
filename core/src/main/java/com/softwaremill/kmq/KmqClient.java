@@ -52,7 +52,7 @@ public class KmqClient<K, V> implements Closeable {
         // Using the custom partitioner, each offset-partition will contain markers only from a single queue-partition.
         this.markerProducer = clients.createProducer(
                 MarkerKey.MarkerKeySerializer.class, MarkerValue.MarkerValueSerializer.class,
-                Collections.singletonMap(ProducerConfig.PARTITIONER_CLASS_CONFIG, ParititionFromMarkerKey.class));
+                Collections.singletonMap(ProducerConfig.PARTITIONER_CLASS_CONFIG, PartitionFromMarkerKey.class));
 
         LOG.info(String.format("Subscribing to topic: %s, using group id: %s", config.getMsgTopic(), config.getMsgConsumerGroupId()));
         msgConsumer.subscribe(Collections.singletonList(config.getMsgTopic()));

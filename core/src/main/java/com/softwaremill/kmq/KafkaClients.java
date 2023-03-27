@@ -31,9 +31,9 @@ public class KafkaClients {
         return createProducer(keySerializer, valueSerializer, Collections.emptyMap());
     }
 
-    public <K, V> KafkaProducer<K, V>  createProducer(Class<? extends Serializer<K>> keySerializer,
-                                                      Class<? extends Serializer<V>> valueSerializer,
-                                                      Map<String, Object> extraConfig) {
+    public <K, V> KafkaProducer<K, V> createProducer(Class<? extends Serializer<K>> keySerializer,
+                                                     Class<? extends Serializer<V>> valueSerializer,
+                                                     Map<String, Object> extraConfig) {
         Properties props = new Properties();
         props.put("bootstrap.servers", bootstrapServers);
         props.put("acks", "all");

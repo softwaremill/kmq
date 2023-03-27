@@ -21,17 +21,17 @@ object StandaloneReactiveClient extends App with StrictLogging {
 
   implicit val system: ActorSystem = ActorSystem()
 
-  val consumerSettings = ConsumerSettings(system, new StringDeserializer, new StringDeserializer)
+  private val consumerSettings = ConsumerSettings(system, new StringDeserializer, new StringDeserializer)
     .withBootstrapServers(bootstrapServer)
     .withGroupId(kmqConfig.getMsgConsumerGroupId)
     .withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
 
-  val markerProducerSettings =
+  private val markerProducerSettings =
     ProducerSettings(system, new MarkerKey.MarkerKeySerializer(), new MarkerValue.MarkerValueSerializer())
       .withBootstrapServers(bootstrapServer)
-      .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[ParititionFromMarkerKey].getName)
+      .withProperty(ProducerConfig.PARTITIONER_CLASS_CONFIG, classOf[PartitionFromMarkerKey].getName)
 
-  val random = new Random()
+  private val random = new Random()
 
   Consumer
     .committableSource[String, String](
@@ -84,8 +84,7 @@ object StandaloneSender extends App with StrictLogging {
   import StandaloneConfig._
 
   implicit val system: ActorSystem = ActorSystem()
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
-  val producerSettings = ProducerSettings(system, new StringSerializer(), new StringSerializer())
+  private val producerSettings = ProducerSettings(system, new StringSerializer(), new StringSerializer())
     .withBootstrapServers(bootstrapServer)
 
   Source
@@ -110,7 +109,7 @@ object StandaloneSender extends App with StrictLogging {
 object StandaloneTracker extends App with StrictLogging {
   import StandaloneConfig._
 
-  val doClose = RedeliveryTracker.start(new KafkaClients(bootstrapServer), kmqConfig)
+  private val doClose = RedeliveryTracker.start(new KafkaClients(bootstrapServer), kmqConfig)
 
   logger.info("Press any key to exit ...")
   StdIn.readLine()

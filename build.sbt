@@ -11,6 +11,10 @@ val akkaVersion = "2.6.19"
 val akkaStreamKafkaVersion = "2.1.1"
 val scalaLoggingVersion = "3.9.5"
 val scalaTestVersion = "3.2.15"
+val catsEffectVersion = "3.4.8"
+val fs2Version = "3.6.1"
+val logs4CatsVersion = "2.5.0"
+val fs2KafkaVersion = "2.4.0"
 
 // slow down Tests for CI
 parallelExecution in Global := false
@@ -45,15 +49,16 @@ lazy val core = (projectMatrix in file("core"))
   .settings(
     libraryDependencies ++= List(
       "org.apache.kafka" % "kafka-clients" % kafkaVersion exclude ("org.scala-lang.modules", "scala-java8-compat"),
-      "com.typesafe.akka" %% "akka-actor" % akkaVersion,
-      "com.typesafe.akka" %% "akka-stream" % akkaVersion,
       "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
+      "org.typelevel" %% "cats-effect" % catsEffectVersion,
+      "co.fs2" %% "fs2-core" % fs2Version,
+      "org.typelevel" %% "log4cats-core" % logs4CatsVersion,
+      "org.typelevel" %% "log4cats-slf4j" % logs4CatsVersion,
       "org.scalatest" %% "scalatest" % scalaTestVersion % Test,
       "org.scalatest" %% "scalatest-flatspec" % scalaTestVersion % Test,
-      "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
-      "com.typesafe.akka" %% "akka-stream-kafka" % akkaStreamKafkaVersion % Test,
       "io.github.embeddedkafka" %% "embedded-kafka" % kafkaVersion % Test exclude ("javax.jms", "jms"),
-      "ch.qos.logback" % "logback-classic" % logbackVersion % Test
+      "ch.qos.logback" % "logback-classic" % logbackVersion % Test,
+      "com.github.fd4s" %% "fs2-kafka" % fs2KafkaVersion % Test
     )
   )
   .jvmPlatform(scalaVersions = Seq(scala2_13))

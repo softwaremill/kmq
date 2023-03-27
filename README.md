@@ -50,7 +50,7 @@ Note: The supported Scala versions are: 2.12, 2.13.
 
 # Client flow
 
-The flow of processing a message is as follow:
+The flow of processing a message is as follows:
 
 1. read messages from the `queue` topic, in batches
 2. write a `start` marker to the `markers` topic for each message, wait until the markers are written
@@ -74,7 +74,7 @@ There are three example applications:
 How time is handled is crucial for message redelivery, as messages are redelivered after a given amount of time passes
 since the `start` marker was sent.
 
-To track what was sent when, `kmq` uses Kafka's message timestamp. By default this is messages create time
+To track what was sent when, `kmq` uses Kafka's message timestamp. By default, this is messages create time
 (`message.timestamp.type=CreateTime`), but for the `markers` topic, it is advisable to switch this to `LogAppendTime`.
 That way, the timestamps more closely reflect when the markers are really written to the log, and are guaranteed to be
 monotonic in each partition (which is important for redelivery - see below).
