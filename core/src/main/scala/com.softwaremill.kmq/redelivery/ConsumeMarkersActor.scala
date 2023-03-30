@@ -11,7 +11,7 @@ import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.ByteArraySerializer
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class ConsumeMarkersActor(clients: KafkaClients, config: KmqConfig) extends Actor with StrictLogging {
 

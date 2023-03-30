@@ -3,7 +3,6 @@ import com.softwaremill.SbtSoftwareMillCommon.commonSmlBuildSettings
 import sbt.Keys._
 import sbt._
 
-val scala2_12 = "2.12.17"
 val scala2_13 = "2.13.10"
 
 val kafkaVersion = "3.4.0"
@@ -25,6 +24,7 @@ lazy val commonSettings = commonSmlBuildSettings ++ ossPublishSettings ++ Seq(
   versionScheme := Some("semver-spec"),
   scalacOptions ++= Seq("-unchecked", "-deprecation"),
   evictionErrorLevel := Level.Info,
+  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
   ideSkipProject := (scalaVersion.value != scala2_13),
   mimaPreviousArtifacts := previousStableVersion.value.map(organization.value %% moduleName.value % _).toSet,
   mimaReportBinaryIssues := {
@@ -56,7 +56,7 @@ lazy val core = (projectMatrix in file("core"))
       "ch.qos.logback" % "logback-classic" % logbackVersion % Test
     )
   )
-  .jvmPlatform(scalaVersions = Seq(scala2_12, scala2_13))
+  .jvmPlatform(scalaVersions = Seq(scala2_13))
 
 lazy val exampleJava = (projectMatrix in file("example-java"))
   .settings(commonSettings)
@@ -68,7 +68,7 @@ lazy val exampleJava = (projectMatrix in file("example-java"))
       "ch.qos.logback" % "logback-classic" % logbackVersion % Runtime
     )
   )
-  .jvmPlatform(scalaVersions = Seq(scala2_12))
+  .jvmPlatform(scalaVersions = Seq(scala2_13))
   .dependsOn(core)
 
 lazy val exampleScala = (projectMatrix in file("example-scala"))
@@ -80,5 +80,5 @@ lazy val exampleScala = (projectMatrix in file("example-scala"))
       "ch.qos.logback" % "logback-classic" % logbackVersion % Runtime
     )
   )
-  .jvmPlatform(scalaVersions = Seq(scala2_12))
+  .jvmPlatform(scalaVersions = Seq(scala2_13))
   .dependsOn(core)

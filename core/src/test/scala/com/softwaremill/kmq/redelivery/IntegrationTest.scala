@@ -27,8 +27,6 @@ class IntegrationTest
     with BeforeAndAfterAll
     with Eventually {
 
-  implicit val materializer = ActorMaterializer()
-
   import system.dispatcher
 
   "KMQ" should "resend message if not committed" in {
@@ -150,7 +148,7 @@ class IntegrationTest
       .to(Producer.plainSink(markerProducerSettings)) // 5. write "end" markers
       .run()
 
-    val undeliveredControl = Consumer
+    Consumer
       .plainSource(
         consumerSettings,
         Subscriptions.topics(s"${kmqConfig.getMsgTopic}__undelivered")

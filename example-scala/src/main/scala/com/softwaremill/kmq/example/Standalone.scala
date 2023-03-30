@@ -2,11 +2,9 @@ package com.softwaremill.kmq.example
 
 import java.time.Duration
 import java.util.Random
-
 import akka.actor.ActorSystem
-import akka.kafka.scaladsl.{Consumer, Producer}
-import akka.kafka.{ConsumerSettings, ProducerMessage, ProducerSettings, Subscriptions}
-import akka.stream.ActorMaterializer
+import akka.kafka.scaladsl.{Committer, Consumer, Producer}
+import akka.kafka.{CommitterSettings, ConsumerSettings, ProducerMessage, ProducerSettings, Subscriptions}
 import akka.stream.scaladsl.Source
 import com.softwaremill.kmq._
 import com.typesafe.scalalogging.StrictLogging
@@ -22,8 +20,6 @@ object StandaloneReactiveClient extends App with StrictLogging {
   import StandaloneConfig._
 
   implicit val system: ActorSystem = ActorSystem()
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
-  import system.dispatcher
 
   val consumerSettings = ConsumerSettings(system, new StringDeserializer, new StringDeserializer)
     .withBootstrapServers(bootstrapServer)
@@ -38,7 +34,10 @@ object StandaloneReactiveClient extends App with StrictLogging {
   val random = new Random()
 
   Consumer
-    .committableSource(consumerSettings, Subscriptions.topics(kmqConfig.getMsgTopic)) // 1. get messages from topic
+    .committableSource[String, String](
+      consumerSettings,
+      Subscriptions.topics(kmqConfig.getMsgTopic)
+    ) // 1. get messages from topic
     .map { msg =>
       ProducerMessage.Message(
         new ProducerRecord[MarkerKey, MarkerValue](
@@ -51,9 +50,10 @@ object StandaloneReactiveClient extends App with StrictLogging {
     }
     .via(Producer.flexiFlow(markerProducerSettings)) // 2. write the "start" marker
     .map(_.passThrough)
-    .mapAsync(1) { msg => // 3. commit offsets after the "start" markers are sent
-      msg.committableOffset.commitScaladsl().map(_ => msg.record) // this should be batched
-    }
+    .alsoTo(
+      Committer.sink(CommitterSettings(system)).contramap(_.committableOffset)
+    ) // 3. commit offsets after the "start" markers are sent
+    .map(_.record)
     .mapConcat { msg =>
       // 4. process the messages
       if (random.nextInt(10) != 0) {

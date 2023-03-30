@@ -14,7 +14,7 @@ import java.time.Duration
 import java.util.Collections
 import java.util.concurrent.{Future, TimeUnit}
 import scala.annotation.tailrec
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 trait Redeliverer {
   def redeliver(toRedeliver: List[MarkerKey]): Unit
@@ -98,7 +98,7 @@ class DefaultRedeliverer(
 
   private def decodeInt(bytes: Array[Byte]): Int = {
     if (bytes.length == 1)
-      bytes(0)
+      bytes(0).toInt
     else
       ByteBuffer.wrap(bytes).getInt
   }
