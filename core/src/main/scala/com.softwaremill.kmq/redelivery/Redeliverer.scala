@@ -23,8 +23,12 @@ trait Redeliverer {
 }
 
 class DefaultRedeliverer(
-  partition: Partition, producer: KafkaProducer[Array[Byte], Array[Byte]],
-  config: KmqConfig, clients: KafkaClients) extends Redeliverer with StrictLogging {
+    partition: Partition,
+    producer: KafkaProducer[Array[Byte], Array[Byte]],
+    config: KmqConfig,
+    clients: KafkaClients
+) extends Redeliverer
+    with StrictLogging {
 
   private val SendTimeoutSeconds = 60L
 
@@ -50,29 +54,42 @@ class DefaultRedeliverer(
   private def redeliver(marker: MarkerKey): Future[RecordMetadata] = {
     if (marker.getPartition != partition) {
       throw new IllegalStateException(
-        s"Got marker key for partition ${marker.getPartition}, while the assigned partition is $partition!")
+        s"Got marker key for partition ${marker.getPartition}, while the assigned partition is $partition!"
+      )
     }
 
     reader.read(marker.getMessageOffset) match {
       case None =>
-        throw new IllegalStateException(s"Cannot redeliver $marker from topic ${config.getMsgTopic} due to data fetch timeout")
+        throw new IllegalStateException(
+          s"Cannot redeliver $marker from topic ${config.getMsgTopic} due to data fetch timeout"
+        )
 
       case Some(toSend) =>
-        val redeliveryCount = toSend.headers.asScala.find(_.key() == config.getRedeliveryCountHeader).map(_.value()).map(decodeInt).getOrElse(0)
+        val redeliveryCount = toSend.headers.asScala
+          .find(_.key() == config.getRedeliveryCountHeader)
+          .map(_.value())
+          .map(decodeInt)
+          .getOrElse(0)
         if (redeliveryCount < config.getMaxRedeliveryCount) {
-          logger.info(s"Redelivering message from ${config.getMsgTopic}, partition ${marker.getPartition}, offset ${marker.getMessageOffset}, redelivery count $redeliveryCount")
-          val redeliveryHeader = Seq[Header](new RecordHeader(config.getRedeliveryCountHeader, encodeInt(redeliveryCount + 1))).asJava
+          logger.info(
+            s"Redelivering message from ${config.getMsgTopic}, partition ${marker.getPartition}, offset ${marker.getMessageOffset}, redelivery count $redeliveryCount"
+          )
+          val redeliveryHeader =
+            Seq[Header](new RecordHeader(config.getRedeliveryCountHeader, encodeInt(redeliveryCount + 1))).asJava
           producer.send(new ProducerRecord(toSend.topic, toSend.partition, toSend.key, toSend.value, redeliveryHeader))
         } else {
-          logger.warn(s"Redelivering message from ${config.getMsgTopic}, partition ${marker.getPartition}, offset ${marker.getMessageOffset}, redelivery count $redeliveryCount - max redelivery count of ${config.getMaxRedeliveryCount} exceeded; sending message to a dead-letter topic ${config.getDeadLetterTopic}")
+          logger.warn(
+            s"Redelivering message from ${config.getMsgTopic}, partition ${marker.getPartition}, offset ${marker.getMessageOffset}, redelivery count $redeliveryCount - max redelivery count of ${config.getMaxRedeliveryCount} exceeded; sending message to a dead-letter topic ${config.getDeadLetterTopic}"
+          )
           producer.send(new ProducerRecord(config.getDeadLetterTopic, toSend.key, toSend.value))
         }
     }
   }
 
   private def writeEndMarker(marker: MarkerKey): Future[RecordMetadata] = {
-    producer.send(new ProducerRecord(config.getMarkerTopic, partition,
-      marker.serialize, EndMarker.INSTANCE.serialize()))
+    producer.send(
+      new ProducerRecord(config.getMarkerTopic, partition, marker.serialize, EndMarker.INSTANCE.serialize())
+    )
   }
 
   private case class RedeliveredMarker(marker: MarkerKey, sendResult: Future[RecordMetadata])
@@ -114,7 +131,10 @@ class RetryingRedeliverer(delegate: Redeliverer) extends Redeliverer with Strict
           logger.warn(s"Exception when trying to redeliver ${batch.markers}. Will try again.", e)
           batch.markers.map(m => RedeliveryBatch(List(m), batch.retry + 1)) // retrying one-by-one
         case e: Exception =>
-          logger.error(s"Exception when trying to redeliver ${batch.markers}. Tried $MaxRetries, Will not try again.", e)
+          logger.error(
+            s"Exception when trying to redeliver ${batch.markers}. Tried $MaxRetries, Will not try again.",
+            e
+          )
           Nil
       }
     }
