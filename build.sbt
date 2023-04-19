@@ -14,7 +14,7 @@ val scalaTestVersion = "3.2.15"
 val catsEffectVersion = "3.4.9"
 val fs2Version = "3.6.1"
 val logs4CatsVersion = "2.5.0"
-val fs2KafkaVersion = "2.6.0"
+val fs2KafkaVersion = "3.0.0"
 
 // slow down Tests for CI
 parallelExecution in Global := false
