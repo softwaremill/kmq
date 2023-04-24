@@ -36,14 +36,14 @@ Multiple copies should be started in a cluster for fail-over. Uses automatic par
 
 SBT:
 
-    "com.softwaremill.kmq" %% "core" % "0.3.0"
+    "com.softwaremill.kmq" %% "core" % "0.3.1"
 
 Maven:
 
     <dependency>
         <groupId>com.softwaremill.kmq</groupId>
         <artifactId>core_2.13</artifactId>
-        <version>0.3.0</version>
+        <version>0.3.1</version>
     </dependency>
 
 Note: The supported Scala versions are: 2.12, 2.13.
@@ -87,11 +87,11 @@ the current system time is used, as we assume that all markers from the partitio
 
 # Project status
 
-## Version 0.3.0.1 (5 Sep 2017)
+## Version 0.3.1.1 (5 Sep 2017)
 
 * Kafka & dependency updates
 
-## Version 0.3.0 (19 Jun 2017)
+## Version 0.3.1 (19 Jun 2017)
 
 * redelivery component optimizations
 * bug fixes
