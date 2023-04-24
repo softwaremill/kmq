@@ -36,13 +36,14 @@ lazy val commonSettings = commonSmlBuildSettings ++ ossPublishSettings ++ Seq(
   }
 )
 
-lazy val kmq = (projectMatrix in file("."))
+lazy val kmq = (project in file("."))
   .settings(commonSettings)
   .settings(
-    crossScalaVersions := Nil,
-    publishArtifact := false
+    publishArtifact := false,
+    name := "kmq",
+    scalaVersion := scala2_13
   )
-  .aggregate(core, exampleJava, exampleScala)
+  .aggregate((core.projectRefs ++ exampleJava.projectRefs ++ exampleScala.projectRefs): _*)
 
 lazy val core = (projectMatrix in file("core"))
   .settings(commonSettings)
