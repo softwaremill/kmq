@@ -85,17 +85,7 @@ maximum such timestamp is used as the value of "now" - as it indicates exactly h
 partition. What "recently" means depends on the `useNowForRedeliverDespiteNoMarkerSeenForMs` config setting. Otherwise,
 the current system time is used, as we assume that all markers from the partition have been processed.
 
-# Project status
-
-## Version 0.3.1.1 (5 Sep 2017)
-
-* Kafka & dependency updates
-
-## Version 0.3.1 (19 Jun 2017)
-
-* redelivery component optimizations
-* bug fixes
-
-## Version 0.1 (24 Apr 2017)
-
-* initial release
+# Dead letter queue (DMQ)
+The redelivery of the message is attempted only a configured number of times. By default, it's 3. You can change that number by setting `maxRedeliveryCount` value in `KmqConfig`.
+After that number is exceeded messages will be forwarded to a topic working as a *dead letter queue*. By default, the name of that topic is name of the message topic concatenated with the suffix `__undelivered`. You can configure the name by setting `deadLetterTopic` in `KmqConfig`.
+The number of redeliveries is tracked by `kmq` with a special header. The default the name of that header is `kmq-redelivery-count`. You can change it by setting `redeliveryCountHeader` in `KmqConfig`. 
