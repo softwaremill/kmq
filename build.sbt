@@ -5,7 +5,7 @@ import sbt._
 
 val scala2_13 = "2.13.10"
 
-val kafkaVersion = "3.4.0"
+val kafkaVersion = "3.4.1"
 val logbackVersion = "1.4.7"
 val akkaVersion = "2.6.19"
 val akkaStreamKafkaVersion = "2.1.1"
