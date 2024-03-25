@@ -12,7 +12,7 @@ val akkaStreamKafkaVersion = "2.1.1"
 val scalaLoggingVersion = "3.9.5"
 val scalaTestVersion = "3.2.15"
 val catsEffectVersion = "3.4.9"
-val fs2Version = "3.6.1"
+val fs2Version = "3.10.1"
 val logs4CatsVersion = "2.6.0"
 val fs2KafkaVersion = "2.6.0"
 
