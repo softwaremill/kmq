@@ -3,7 +3,7 @@ import com.softwaremill.SbtSoftwareMillCommon.commonSmlBuildSettings
 import sbt.Keys._
 import sbt._
 
-val scala2_13 = "2.13.10"
+val scala2_13 = "2.13.16"
 
 val kafkaVersion = "3.4.0"
 val logbackVersion = "1.4.7"
