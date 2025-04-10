@@ -1,4 +1,4 @@
-val sbtSoftwareMillVersion = "2.0.12"
+val sbtSoftwareMillVersion = "2.0.22"
 addSbtPlugin("com.softwaremill.sbt-softwaremill" % "sbt-softwaremill-common" % sbtSoftwareMillVersion)
 addSbtPlugin("com.softwaremill.sbt-softwaremill" % "sbt-softwaremill-publish" % sbtSoftwareMillVersion)
 addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "1.1.2")
