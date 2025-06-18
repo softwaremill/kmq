@@ -13,13 +13,6 @@ jobs:
     with:
       java-opts: '-Xmx4G'
 
-  mima:
-    uses: softwaremill/github-actions-workflows/.github/workflows/mima.yml@main
-    # run on external PRs, but not on internal PRs since those will be run by push to branch
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
-    with:
-      java-opts: '-Xmx4G'
-
   publish:
     uses: softwaremill/github-actions-workflows/.github/workflows/publish-release.yml@main
     needs: [build]

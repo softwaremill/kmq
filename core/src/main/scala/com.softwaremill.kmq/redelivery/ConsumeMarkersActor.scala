@@ -127,16 +127,17 @@ object ConsumeMarkersActor {
           newlyAssignedPartitions <- markers.groupBy(_.partition()).toList.flatTraverse { case (partition, records) =>
             assignedPartitions.get(partition) match {
               case None =>
+                val tp = new TopicPartition(config.getMarkerTopic, partition)
                 for {
                   endOffsets <- IO(
                     markerConsumer
-                      .endOffsets(Collections.singleton(new TopicPartition(config.getMarkerTopic, partition)))
+                      .endOffsets(Collections.singleton(tp))
                   )
                   _ <- logger.info(s"Assigned marker partition: $partition")
                   ap <- partitionAssigned(
                     producer,
                     partition,
-                    endOffsets.get(partition) - 1,
+                    endOffsets.get(tp) - 1,
                     dispatcher
                   )
                   _ <- handleRecords(ap, now, partition, records)
