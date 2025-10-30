@@ -5,6 +5,9 @@ on:
   push:
     branches: ['**']
     tags: [v*]
+permissions:
+  contents: write        # release-drafter, auto-merge requirement
+  pull-requests: write   # labeler, auto-merge requirement    
 jobs:
   build:
     uses: softwaremill/github-actions-workflows/.github/workflows/build-scala.yml@main
