@@ -17,27 +17,28 @@ val logs4CatsVersion = "2.6.0"
 val fs2KafkaVersion = "2.6.0"
 
 // slow down Tests for CI
-parallelExecution in Global := false
-concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
+Global / parallelExecution := false
+Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 // disable mima checks globally
-mimaPreviousArtifacts in Global := Set.empty
+Global / mimaPreviousArtifacts := Set.empty
+Global / excludeLintKeys ++= Set(ideSkipProject)
 
-lazy val commonSettings = commonSmlBuildSettings ++ ossPublishSettings ++ Seq(
-  organization := "com.softwaremill.kmq",
-  mimaPreviousArtifacts := Set.empty,
-  versionScheme := Some("semver-spec"),
-  scalacOptions ++= Seq("-unchecked", "-deprecation"),
-  evictionErrorLevel := Level.Info,
-  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
-  ideSkipProject := (scalaVersion.value != scala2_13),
-  mimaPreviousArtifacts := previousStableVersion.value.map(organization.value %% moduleName.value % _).toSet,
-  mimaReportBinaryIssues := {
-    if ((publish / skip).value) {} else mimaReportBinaryIssues.value
-  }
-)
+commonSmlBuildSettings
+ossPublishSettings
+
+organization := "com.softwaremill.kmq"
+mimaPreviousArtifacts := Set.empty
+versionScheme := Some("semver-spec")
+scalacOptions ++= Seq("-unchecked", "-deprecation")
+evictionErrorLevel := Level.Info
+addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1")
+ideSkipProject := (scalaVersion.value != scala2_13)
+mimaPreviousArtifacts := previousStableVersion.value.map(organization.value %% moduleName.value % _).toSet
+mimaReportBinaryIssues := {
+  if ((publish / skip).value) {} else mimaReportBinaryIssues.value
+}
 
 lazy val kmq = (project in file("."))
-  .settings(commonSettings)
   .settings(
     publishArtifact := false,
     name := "kmq",
@@ -46,10 +47,9 @@ lazy val kmq = (project in file("."))
   .aggregate((core.projectRefs ++ exampleJava.projectRefs ++ exampleScala.projectRefs): _*)
 
 lazy val core = (projectMatrix in file("core"))
-  .settings(commonSettings)
   .settings(
     libraryDependencies ++= List(
-      "org.apache.kafka" % "kafka-clients" % kafkaVersion exclude ("org.scala-lang.modules", "scala-java8-compat"),
+      ("org.apache.kafka" % "kafka-clients" % kafkaVersion).exclude("org.scala-lang.modules", "scala-java8-compat"),
       "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
       "org.typelevel" %% "cats-effect" % catsEffectVersion,
       "co.fs2" %% "fs2-core" % fs2Version,
@@ -57,7 +57,7 @@ lazy val core = (projectMatrix in file("core"))
       "org.typelevel" %% "log4cats-slf4j" % logs4CatsVersion,
       "org.scalatest" %% "scalatest" % scalaTestVersion % Test,
       "org.scalatest" %% "scalatest-flatspec" % scalaTestVersion % Test,
-      "io.github.embeddedkafka" %% "embedded-kafka" % kafkaVersion % Test exclude ("javax.jms", "jms"),
+      ("io.github.embeddedkafka" %% "embedded-kafka" % kafkaVersion % Test).exclude("javax.jms", "jms"),
       "ch.qos.logback" % "logback-classic" % logbackVersion % Test,
       "com.github.fd4s" %% "fs2-kafka" % fs2KafkaVersion % Test
     )
@@ -65,7 +65,6 @@ lazy val core = (projectMatrix in file("core"))
   .jvmPlatform(scalaVersions = Seq(scala2_13))
 
 lazy val exampleJava = (projectMatrix in file("example-java"))
-  .settings(commonSettings)
   .settings(
     publishArtifact := false,
     libraryDependencies ++= List(
@@ -78,7 +77,6 @@ lazy val exampleJava = (projectMatrix in file("example-java"))
   .dependsOn(core)
 
 lazy val exampleScala = (projectMatrix in file("example-scala"))
-  .settings(commonSettings)
   .settings(
     publishArtifact := false,
     libraryDependencies ++= List(
