@@ -38,13 +38,13 @@ mimaReportBinaryIssues := {
   if ((publish / skip).value) {} else mimaReportBinaryIssues.value
 }
 
-lazy val kmq = (project in file("."))
+lazy val kmq = rootProject
   .settings(
     publishArtifact := false,
     name := "kmq",
     scalaVersion := scala2_13
   )
-  .aggregate((core.projectRefs ++ exampleJava.projectRefs ++ exampleScala.projectRefs): _*)
+  .autoAggregate
 
 lazy val core = (projectMatrix in file("core"))
   .settings(
